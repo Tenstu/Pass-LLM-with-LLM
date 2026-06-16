@@ -23,13 +23,22 @@
 
 ```bash
 cd pass-llm-with-llm
-pip install mcp
+
+# 基础安装（V1：MCP + 文件存储）
+pip install mcp pyyaml
+
+# V2 语义检索（可选：sentence-transformers + numpy）
+pip install "exam_memory[embed]"   # 或 pip install sentence-transformers numpy
+
+# V2 全部增强（可选：含 LangChain）
+pip install "exam_memory[full]"    # 或 pip install sentence-transformers numpy langchain-core langchain-community
 ```
 
 或使用 uv（推荐）：
 
 ```bash
-uv pip install mcp
+uv pip install mcp pyyaml
+uv pip install "exam_memory[embed]"   # 可选：语义检索
 ```
 
 ### 1.2 注册到 Claude Code
@@ -124,6 +133,29 @@ uv pip install mcp
 - **混合检索**：对所有本地源执行词法 + 语义联合搜索，适合查找"之前在哪里看过这个知识点"。
 - **适合配合的 Skill**：choice-q-create（从笔记中搜索出题素材）、exam-assistant（解答时检索参考资料）、review-tracker（检查笔记是否覆盖考试知识点）。
 - 项目内 Skill 不直接调用 OneFind 工具，通过 Claude Code 手动使用。
+
+### 2.4 OneFind + exam-memory 互补配置
+
+OneFind 的 **folder source** 可以索引 `exam_memory/experiences/` 目录，为经验文件提供语义搜索能力。但 OneFind 是只读检索层，无法替代 exam-memory 的写入链路（save → vectorize → store）。
+
+**推荐配置步骤**：
+
+1. 在 OneFind 中设置 `folder_library` 指向 `exam_memory/experiences/`：
+   ```
+   onefind_config_update(folder_library="<项目绝对路径>/exam_memory/experiences")
+   ```
+
+2. 通过 exam-memory MCP 保存新经验后，触发 OneFind 索引刷新：
+   ```
+   onefind_index_refresh(sources=["folder"])
+   ```
+
+3. 使用 OneFind 语义检索经验（比 MCP 的 `list_experiences` 关键词匹配更智能）：
+   ```
+   onefind_search(query="背包问题 动态规划", target="folder", limit=5)
+   ```
+
+**适用场景**：经验条目积累到 10+ 条后，关键词匹配的 `list_experiences` 可能遗漏语义相关但措辞不同的条目，此时 OneFind 的语义检索价值凸显。
 
 ---
 

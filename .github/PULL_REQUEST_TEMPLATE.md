@@ -1,24 +1,55 @@
-## 改了什么
+## What Changed / 改了什么
 
-简要描述本次 PR 的内容。
+Brief description of this PR.
 
-## 为什么改
+## Why / 为什么改
 
-说明改动的动机或解决的问题。
+Motivation or issue being addressed.
 
-## 影响范围
+## Scope / 影响范围
 
-- [ ] Skill 定义 (`skills/`)
+- [ ] Skill definition (`skills/`)
 - [ ] MCP Server (`exam_memory/`)
-- [ ] 算法代码 (`algorithms/`)
-- [ ] 速记资料 (`llm/`)
-- [ ] 文档 / README
-- [ ] 进度追踪 (`progress/`)
+- [ ] Algorithm code (`algorithms/`)
+- [ ] Cheatsheet / quick notes (`llm/`)
+- [ ] Documentation / README
+- [ ] Progress tracking (`progress/`)
+- [ ] GitHub templates / CI config
+
+## Testing Evidence / 测试证据
+
+Describe how you verified this change works:
+
+- [ ] Algorithm solution tested with sample input/output
+- [ ] Skill invoked successfully via `Skill(skill="...")`
+- [ ] MCP tool called and returned expected result
+- [ ] Manual walkthrough / dry-run completed
+- [ ] N/A — docs-only or template-only change
+
+Details:
+
+```
+(paste test output, screenshots, or notes here)
+```
+
+## Breaking Changes / 破坏性变更
+
+- [ ] This PR introduces no breaking changes
+- [ ] This PR changes an existing Skill's trigger behavior
+- [ ] This PR modifies MCP tool signatures or output format
+- [ ] This PR renames or moves files referenced by other components
+- [ ] This PR requires re-running `exam_memory` setup
+
+If breaking, describe migration steps:
+
+```
+(describe what users need to do after merging)
+```
 
 ## Checklist
 
-- [ ] 算法题已走 solve-skeleton → algo-annotation 完整流程
-- [ ] WA/TLE 错误已录入 `algorithms/mistake_log.md`
-- [ ] 新 Skill 有完整的 frontmatter（name, description）
-- [ ] 未引入不必要的第三方依赖
-- [ ] 不涉及 `exam_memory/` 个人数据
+- [ ] Algorithm solution went through solve-skeleton -> algo-annotation full flow
+- [ ] WA/TLE errors recorded in `algorithms/mistake_log.md`
+- [ ] New Skill has complete frontmatter (name, description)
+- [ ] No unnecessary third-party dependencies introduced
+- [ ] No personal data from `exam_memory/` included (that directory is in `.gitignore`)

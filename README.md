@@ -141,6 +141,17 @@ Best paired with review-tracker (knowledge graph for coverage gaps) and exam-ass
 
 Best paired with choice-q-create (search notes for question material), exam-assistant (retrieve references during explanation), and review-tracker (check if your notes cover the required topics). Not directly called by any bundled skill — use OneFind tools manually via Claude Code.
 
+#### OneFind + exam-memory: Complementary Search Layers
+
+OneFind's **folder source** can index `exam_memory/experiences/` for semantic search. However, OneFind is designed as a **read-only retrieval** layer — it cannot replace exam-memory's write-through pipeline (save experience → vectorize → store atomically). The recommended setup:
+
+| Layer | Role | Write | Read |
+|-------|------|:-----:|:----:|
+| `exam-memory` MCP | Experience CRUD + error counting + user profiling | Yes (save, update) | Yes (list, filter by type) |
+| OneFind folder source | Semantic search overlay on experience files | No (index refresh only) | Yes (semantic + keyword) |
+
+**Setup**: Configure OneFind's `folder_library` to point at `exam_memory/experiences/`, then use `onefind_search` with `target="folder"` for semantic retrieval of past experiences. After saving new experiences via MCP, trigger `onefind_index_refresh` to pick up changes.
+
 ## Roadmap
 
 ### V1 (Current) — Stable
@@ -156,9 +167,9 @@ Upgrade `exam-memory` from keyword matching to semantic search:
 
 | Phase | Feature | Dependencies |
 |-------|---------|--------------|
-| 1 | Experience auto-vectorization → ChromaDB | `chromadb`, `langchain` |
+| 1 | Experience auto-vectorization → numpy store | `sentence-transformers` (bge-m3) |
 | 2 | `list_experiences` supports semantic retrieval | Phase 1 |
-| 3 | LangChain Agent auto-infers user profile | `langchain`, LLM API |
+| 3 | LLM auto-infers user profile | LLM API |
 | 4 | Knowledge graph for prerequisite recommendations | Phase 1 |
 
 ### V3 — Long-term Directions
