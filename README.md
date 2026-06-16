@@ -83,9 +83,9 @@ This project **bundles one MCP server** (`exam-memory`) and **references externa
 | MCP Server | Bundled? | Purpose | Setup |
 |------------|:---:|---------|-------|
 | `exam-memory` | Yes | Cross-session experience persistence + user profiling | `pip install mcp` + edit `.mcp.json` |
-| ChatMem | No | Cross-session conversation memory | [External install](https://github.com/nicobailon/chatmem) |
-| mempalace | No | Structured knowledge storage | External install |
-| onefind | No | Local knowledge base retrieval | External install |
+| ChatMem | No | Cross-session conversation memory | [External install](https://github.com/Rimagination/ChatMem/releases) |
+| mempalace | No | Structured knowledge storage | [External install](https://github.com/MemPalace/mempalace) |
+| onefind | No | Local knowledge base retrieval | [External install](https://github.com/iawnfoanaowt/OneFind) |
 
 All skills degrade gracefully to local-only mode when MCP is unavailable. See [MCP Setup Guide](docs/mcp-setup-guide.md) for full configuration instructions.
 

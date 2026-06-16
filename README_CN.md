@@ -83,9 +83,9 @@ git clone → cd pass-llm-with-llm
 | MCP Server | 是否自带 | 用途 | 配置方式 |
 |------------|:---:|------|---------|
 | `exam-memory` | 是 | 跨会话经验持久化 + 用户画像 | `pip install mcp` + 编辑 `.mcp.json` |
-| ChatMem | 否 | 跨会话对话记忆 | [外部安装](https://github.com/nicobailon/chatmem) |
-| mempalace | 否 | 结构化知识存储 | 外部安装 |
-| onefind | 否 | 本地知识库检索 | 外部安装 |
+| ChatMem | 否 | 跨会话对话记忆 | [外部安装](https://github.com/Rimagination/ChatMem/releases) |
+| mempalace | 否 | 结构化知识存储 | [外部安装](https://github.com/MemPalace/mempalace) |
+| onefind | 否 | 本地知识库检索 | [外部安装](https://github.com/iawnfoanaowt/OneFind) |
 
 所有 Skill 在 MCP 不可用时自动降级为纯本地模式。详见 [MCP 配置指南](docs/mcp-setup-guide.md)。
 

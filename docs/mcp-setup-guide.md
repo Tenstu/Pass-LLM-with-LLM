@@ -85,7 +85,7 @@ uv pip install mcp
 - "之前做过什么" / "上次练到哪了"
 - 项目历史回顾、session 继续
 
-**安装**：参考 [ChatMem 项目文档](https://github.com/nicobailon/chatmem) 在 Claude Code 全局配置中注册。
+**安装**：参考 [ChatMem 项目文档](https://github.com/Rimagination/ChatMem/releases) 在 Claude Code 全局配置中注册。
 
 **与 exam-memory 的区分**：
 - `exam-memory`：项目专用，结构化题目经验（错题模式、知识点、错误频率）
@@ -99,7 +99,7 @@ uv pip install mcp
 - 长期备考知识管理
 - 跨项目知识关联
 
-**安装**：参考 mempalace 文档在 Claude Code 全局配置中注册。
+**安装**：参考 [mempalace 文档](https://github.com/MemPalace/mempalace) 在 Claude Code 全局配置中注册。
 
 ### 2.3 onefind
 
@@ -109,7 +109,7 @@ uv pip install mcp
 - 检索已有笔记中的知识点
 - 文献库中的参考论文
 
-**安装**：参考 [onefind 文档](https://github.com/...) 在 Claude Code 全局配置中注册。
+**安装**：参考 [onefind 文档](https://github.com/iawnfoanaowt/OneFind) 在 Claude Code 全局配置中注册。
 
 ---
 
