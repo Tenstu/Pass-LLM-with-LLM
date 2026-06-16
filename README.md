@@ -117,6 +117,41 @@ All skills with "Optional" MCP degrade gracefully to local-only mode when MCP is
 
 Install ChatMem and register it in your Claude Code global config. See [MCP Setup Guide](docs/mcp-setup-guide.md).
 
+### MemPalace Enhancement (Optional)
+
+[MemPalace](https://github.com/MemPalace/mempalace) provides structured knowledge storage with cross-wing knowledge graphs. Best suited for long-term knowledge management beyond a single exam cycle:
+
+| Use Case | How It Helps |
+|----------|-------------|
+| Knowledge graph | Map prerequisite relationships (e.g., DP ← knapsack, binary search ← sorted array) for targeted review |
+| Agent diary | Record learning observations per session; build a searchable history of "what I learned" |
+| Cross-project knowledge | Link exam prep notes with project work, interview prep, or research notes |
+
+Best paired with review-tracker (knowledge graph for coverage gaps) and exam-assistant (structured retrieval of prior insights). Not directly called by any bundled skill — use MemPalace tools manually via Claude Code.
+
+### OneFind Enhancement (Optional)
+
+[OneFind](https://github.com/iawnfoanaowt/OneFind) retrieves content from your local knowledge base (Obsidian vaults, Zotero libraries, folders). Useful if you already maintain study notes outside this project:
+
+| Use Case | How It Helps |
+|----------|-------------|
+| Obsidian notes | Search your existing ML/algorithm notes for related concepts when practicing |
+| Zotero library | Retrieve reference papers for Transformer, GNN, Diffusion topics in `llm/` cheatsheets |
+| Hybrid search | Combine lexical + semantic search across all local sources |
+
+Best paired with choice-q-create (search notes for question material), exam-assistant (retrieve references during explanation), and review-tracker (check if your notes cover the required topics). Not directly called by any bundled skill — use OneFind tools manually via Claude Code.
+
+#### OneFind + exam-memory: Complementary Search Layers
+
+OneFind's **folder source** can index `exam_memory/experiences/` for semantic search. However, OneFind is designed as a **read-only retrieval** layer — it cannot replace exam-memory's write-through pipeline (save experience → vectorize → store atomically). The recommended setup:
+
+| Layer | Role | Write | Read |
+|-------|------|:-----:|:----:|
+| `exam-memory` MCP | Experience CRUD + error counting + user profiling | Yes (save, update) | Yes (list, filter by type) |
+| OneFind folder source | Semantic search overlay on experience files | No (index refresh only) | Yes (semantic + keyword) |
+
+**Setup**: Configure OneFind's `folder_library` to point at `exam_memory/experiences/`, then use `onefind_search` with `target="folder"` for semantic retrieval of past experiences. After saving new experiences via MCP, trigger `onefind_index_refresh` to pick up changes.
+
 ## Roadmap
 
 ### V1 (Current) — Stable
@@ -132,9 +167,9 @@ Upgrade `exam-memory` from keyword matching to semantic search:
 
 | Phase | Feature | Dependencies |
 |-------|---------|--------------|
-| 1 | Experience auto-vectorization → ChromaDB | `chromadb`, `langchain` |
+| 1 | Experience auto-vectorization → numpy store | `sentence-transformers` (bge-m3) |
 | 2 | `list_experiences` supports semantic retrieval | Phase 1 |
-| 3 | LangChain Agent auto-infers user profile | `langchain`, LLM API |
+| 3 | LLM auto-infers user profile | LLM API |
 | 4 | Knowledge graph for prerequisite recommendations | Phase 1 |
 
 ### V3 — Long-term Directions

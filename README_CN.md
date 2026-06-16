@@ -117,6 +117,41 @@ git clone → cd pass-llm-with-llm
 
 安装 ChatMem 并在 Claude Code 全局配置中注册。详见 [MCP 配置指南](docs/mcp-setup-guide.md)。
 
+### MemPalace 增强（可选）
+
+[MemPalace](https://github.com/MemPalace/mempalace) 提供结构化知识存储与跨 wing 知识图谱。适合长期知识管理，超越单次备考周期：
+
+| 使用场景 | 增强效果 |
+|---------|---------|
+| 知识图谱 | 建模知识点前置关系（如 DP ← 背包问题，二分 ← 有序数组），实现定向复习 |
+| Agent 日记 | 每次 session 记录学习观察，构建可搜索的"我学到了什么"历史 |
+| 跨项目知识 | 将备考笔记与项目实战、面试准备、研究笔记关联 |
+
+适合与 review-tracker（知识图谱查覆盖缺口）和 exam-assistant（结构化检索历史洞察）配合使用。项目内 Skill 不直接调用 MemPalace，通过 Claude Code 手动使用其工具。
+
+### OneFind 增强（可选）
+
+[OneFind](https://github.com/iawnfoanaowt/OneFind) 从本地知识库（Obsidian 笔记库、Zotero 文献库、本地文件夹）检索内容。适合已有外部学习笔记的用户：
+
+| 使用场景 | 增强效果 |
+|---------|---------|
+| Obsidian 笔记 | 练习时搜索已有的 ML/算法笔记，关联相关概念 |
+| Zotero 文献库 | 为 `llm/` 速记资料中的 Transformer、GNN、Diffusion 主题检索参考论文 |
+| 混合检索 | 跨所有本地源执行词法 + 语义联合搜索 |
+
+适合与 choice-q-create（从笔记中搜索出题素材）、exam-assistant（解答时检索参考资料）和 review-tracker（检查笔记是否覆盖考试知识点）配合使用。项目内 Skill 不直接调用 OneFind，通过 Claude Code 手动使用其工具。
+
+#### OneFind + exam-memory：互补检索层
+
+OneFind 的 **folder source** 可以索引 `exam_memory/experiences/` 目录，提供语义搜索能力。但 OneFind 是**只读检索**层设计，无法替代 exam-memory 的写入链路（保存经验 → 向量化 → 原子存储）。推荐组合方案：
+
+| 层级 | 角色 | 写入 | 读取 |
+|------|------|:----:|:----:|
+| `exam-memory` MCP | 经验 CRUD + 错误计数 + 用户画像 | 是（save, update） | 是（list, 按类型过滤） |
+| OneFind folder source | 经验文件的语义搜索覆盖层 | 否（仅索引刷新） | 是（语义 + 关键词） |
+
+**配置方式**：将 OneFind 的 `folder_library` 指向 `exam_memory/experiences/`，然后使用 `onefind_search`（`target="folder"`）对历史经验做语义检索。通过 MCP 保存新经验后，调用 `onefind_index_refresh` 触发索引更新。
+
 ## 路线图
 
 ### V1（当前）— 稳定版
@@ -132,9 +167,9 @@ git clone → cd pass-llm-with-llm
 
 | 阶段 | 特性 | 依赖 |
 |------|------|------|
-| 1 | 经验文件自动向量化 → ChromaDB | `chromadb`, `langchain` |
+| 1 | 经验文件自动向量化 → numpy 存储 | `sentence-transformers`（bge-m3） |
 | 2 | `list_experiences` 支持语义检索 | 阶段 1 |
-| 3 | LangChain Agent 自动推断用户画像 | `langchain`, LLM API |
+| 3 | LLM 自动推断用户画像 | LLM API |
 | 4 | 知识图谱关联推荐前置知识点 | 阶段 1 |
 
 ### V3 — 远期方向

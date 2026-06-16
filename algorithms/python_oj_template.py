@@ -20,7 +20,7 @@ from heapq import heappop, heappush
 import bisect
 # 数学函数：gcd、sqrt、ceil、floor、inf 等
 import math
-# 快速 I/O：stdin.buffer 比 input() 快数倍
+# 快速 I/O：逐行读取即可，OJ 通常不卡 I/O
 import sys
 
 
@@ -29,8 +29,9 @@ import sys
 # ============================================================
 
 def read_all() -> str:
-    """一次性读取全部 stdin 内容并解码为字符串。适用于整文件读入后 split 处理。"""
-    return sys.stdin.buffer.read().decode()
+    """读取全部 stdin 内容并解码为字符串（逐行读取，不使用 buffer）。
+    适用于整文件读入后 split 处理。"""
+    return sys.stdin.read()
 
 
 def read_ints() -> list[int]:
@@ -38,15 +39,18 @@ def read_ints() -> list[int]:
     适用于：一行中有多个空格分隔的整数。
     示例: "3 1 4 1 5"  ->  [3, 1, 4, 1, 5]
     """
-    return list(map(int, sys.stdin.buffer.readline().split()))
+    return list(map(int, sys.stdin.readline().split()))
 
 
 def ints_from_stdin() -> list[int]:
-    """读取全部 stdin 内容，按空白字符分割后转为 int 列表。
+    """逐行读取全部 stdin，合并后转为 int 列表。
     适用于：行数未知、或一次性读入所有数字更方便的场景。
     示例: "3\n1 2\n3 4 5"  ->  [3, 1, 2, 3, 4, 5]
     """
-    return list(map(int, sys.stdin.buffer.read().split()))
+    out = []
+    for line in sys.stdin:
+        out.extend(map(int, line.split()))
+    return out
 
 
 # ============================================================
@@ -329,11 +333,11 @@ def solve():
     常见输入格式:
 
     格式1 - 先读 n，再读数组:
-        n = int(sys.stdin.buffer.readline())
+        n = int(sys.stdin.readline())
         nums = read_ints()
 
     格式2 - 多组测试用例:
-        t = int(sys.stdin.buffer.readline())
+        t = int(sys.stdin.readline())
         out = []
         for _ in range(t):
             n, m = read_ints()
@@ -346,7 +350,7 @@ def solve():
         n = data[0]
         nums = data[1:]
     """
-    data = sys.stdin.buffer.read().split()
+    data = sys.stdin.read().split()
     if not data:
         return
     # 示例占位代码: 输出读入的整数个数（实际提交时删除）

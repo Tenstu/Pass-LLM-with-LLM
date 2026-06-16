@@ -23,8 +23,9 @@ input.txt
 transformer-forward-pass.md
 transformer-review.md
 
-# 考试经验沉淀系统 - 运行时数据
-exam_memory/
+# 考试经验沉淀系统 - 运行时个人数据（代码和配置应被跟踪）
+exam_memory/experiences/
+exam_memory/user_profile.json
 
 # 个人备考数据（保留目录框架，忽略实际数据文件）
 # HANDOFF.md 作为模板跟踪（每轮备考时填写具体数据，提交前应清空）
