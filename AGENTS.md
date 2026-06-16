@@ -148,6 +148,9 @@ pass-llm-with-llm/
     exam-memory-design.md      # Exam memory MCP server design.
     exam-memory-roadmap.md     # Exam memory feature roadmap.
     solve-analyze-plan.md      # Solve/analyze planning notes.
+    open-source-plan.md        # Open-source preparation plan: renaming, README rewrite, sensitive data cleanup.
+    progress-organization-plan.md # Progress directory classification and migration plan.
+    INDEX.md                   # docs/ directory index and status tracking.
 ```
 
 ### MCP Integration Architecture

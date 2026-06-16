@@ -44,7 +44,7 @@ GitHub: github.com/Tenstu/pass-llm-with-llm
 | 2 | 更新 `.gitignore` | 移除 `docs/`，加入个人数据目录忽略规则，保留目录框架 | **已完成** |
 | 3 | 重写 `README.md` | 中英文双版（README.md 英文 + README_CN.md 中文） | **已完成** |
 | 4 | `git mv docs/contributing-guide.md CONTRIBUTING.md` | GitHub 自动识别 PR 提示 | **已完成** |
-| 5 | 重命名项目目录 | `pdd-llm-algo-exam-harness` → `pass-llm-with-llm` | 待执行 |
+| 5 | 重命名项目目录 | `pdd-llm-algo-exam-harness` → `pass-llm-with-llm` | 可选（仅影响本地目录名，GitHub 仓库已正确命名） |
 | 6 | 清理 git 中已跟踪的敏感文件 | `git rm --cached` 移除 `.claude/settings.json`、daily/、progress/ 个人数据 | **已完成** |
 
 ### 3.2 P1 — 建议完成
@@ -53,8 +53,8 @@ GitHub: github.com/Tenstu/pass-llm-with-llm
 |------|------|------|------|
 | 7 | 精简 `AGENTS.md` | 移除个人色彩内容（具体日期、岗位 JD），保留技术架构 | **已完成** |
 | 8 | 更新 `.mcp.json` | 当前为空 `{}`，可加注释说明配置方式 | **已完成**（在 docs/mcp-setup-guide.md 中提供模板） |
-| 9 | 添加 `.github/ISSUE_TEMPLATE/` | Bug report + Feature request 模板 | 待执行 |
-| 10 | 添加 `.github/PULL_REQUEST_TEMPLATE.md` | PR 模板 | 待执行 |
+| 9 | 添加 `.github/ISSUE_TEMPLATE/` | Bug report + Feature request 模板 | **已完成** |
+| 10 | 添加 `.github/PULL_REQUEST_TEMPLATE.md` | PR 模板 | **已完成** |
 | 11 | MCP 配置指南 | `docs/mcp-setup-guide.md`：exam-memory 注册 + 外部 MCP 引用 + 启动顺序 | **已完成** |
 | 12 | init-guide Skill | `skills/init-guide.md`：首次使用导引，收集备考目标，更新画像 | **已完成** |
 | 13 | README Startup Order | README.md + README_CN.md 新增启动顺序图、MCP 依赖说明表 | **已完成** |
@@ -69,9 +69,9 @@ GitHub: github.com/Tenstu/pass-llm-with-llm
 
 | 序号 | 改动 | 说明 | 状态 |
 |------|------|------|------|
-| 11 | 添加 `CHANGELOG.md` | 版本记录 | 待执行 |
-| 12 | GitHub Topics 标签 | `llm`、`exam-prep`、`claude-code`、`mcp`、`algorithm` | 发布时设置 |
-| 13 | GitHub About 描述 | 一句话项目描述 + 网站链接 | 发布时设置 |
+| 20 | 添加 `CHANGELOG.md` | 版本记录 | 待执行 |
+| 21 | GitHub Topics 标签 | `llm`、`exam-prep`、`claude-code`、`mcp`、`algorithm` | 发布时设置 |
+| 22 | GitHub About 描述 | 一句话项目描述 + 网站链接 | 发布时设置 |
 
 ## 4. README.md 重写方案
 
