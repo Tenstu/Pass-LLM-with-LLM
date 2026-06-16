@@ -109,9 +109,11 @@ pass-llm-with-llm/
     server.py                  # 6 MCP tools (list/save/inc/profile/update/search).
                                # Tool prefix: mcp__exam-memory__<tool_name>
                                # search_web 已废弃，使用 Claude Code 内置 WebSearch
-    experiences/               # Markdown + YAML frontmatter experience files. (当前为空)
+                               # V2: list_experiences 支持 query 参数（语义检索）
+    experiences/               # Markdown + YAML frontmatter experience files. 初始为空，使用中积累
     user_profile.json          # User strengths/weaknesses/preferences. (已初始化)
-    pyproject.toml             # Python package config.
+    pyproject.toml             # Python package config (optional-deps: embed, langchain, full).
+                               # V2 roadmap (未实现): embedding.py / vector_store.py / rag_pipeline.py / rebuild_index.py
     __init__.py
 
   .mcp.json                    # MCP server registration (exam-memory via stdio).
@@ -161,8 +163,8 @@ pass-llm-with-llm/
 
 ```
 exam-memory (stdio) → python exam_memory/server.py
-  ├── list_experiences    — 按题型检索经验（error_count 降序）
-  ├── save_experience     — 保存新经验条目（自动编号）
+  ├── list_experiences    — 按题型检索经验（error_count 降序）+ V2 语义检索（query 参数）
+  ├── save_experience     — 保存新经验条目（自动编号）+ V2 自动向量化入库
   ├── inc_error_count     — 经验错误计数 +1
   ├── get_user_profile    — 读取用户画像 JSON
   ├── update_user_profile — 增量合并画像字段
@@ -288,7 +290,7 @@ User input (problem statement)
 
 ### MCP Feedback Loop (exam-memory)
 
-**当前状态**：`experiences/` 目录为空，`user_profile.json` 已初始化。MCP 写路径（`save_experience` / `inc_error_count`）尚未有实际数据验证。
+**MCP 状态**：`experiences/` 目录已有 3 条经验文件（算法×1、单选题×1、多选题×1）。`user_profile.json` 已初始化。MCP 写路径可用。
 
 ```
 choice-q-drill (quiz results)

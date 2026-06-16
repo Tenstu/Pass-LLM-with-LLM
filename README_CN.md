@@ -141,6 +141,17 @@ git clone → cd pass-llm-with-llm
 
 适合与 choice-q-create（从笔记中搜索出题素材）、exam-assistant（解答时检索参考资料）和 review-tracker（检查笔记是否覆盖考试知识点）配合使用。项目内 Skill 不直接调用 OneFind，通过 Claude Code 手动使用其工具。
 
+#### OneFind + exam-memory：互补检索层
+
+OneFind 的 **folder source** 可以索引 `exam_memory/experiences/` 目录，提供语义搜索能力。但 OneFind 是**只读检索**层设计，无法替代 exam-memory 的写入链路（保存经验 → 向量化 → 原子存储）。推荐组合方案：
+
+| 层级 | 角色 | 写入 | 读取 |
+|------|------|:----:|:----:|
+| `exam-memory` MCP | 经验 CRUD + 错误计数 + 用户画像 | 是（save, update） | 是（list, 按类型过滤） |
+| OneFind folder source | 经验文件的语义搜索覆盖层 | 否（仅索引刷新） | 是（语义 + 关键词） |
+
+**配置方式**：将 OneFind 的 `folder_library` 指向 `exam_memory/experiences/`，然后使用 `onefind_search`（`target="folder"`）对历史经验做语义检索。通过 MCP 保存新经验后，调用 `onefind_index_refresh` 触发索引更新。
+
 ## 路线图
 
 ### V1（当前）— 稳定版
@@ -156,9 +167,9 @@ git clone → cd pass-llm-with-llm
 
 | 阶段 | 特性 | 依赖 |
 |------|------|------|
-| 1 | 经验文件自动向量化 → ChromaDB | `chromadb`, `langchain` |
+| 1 | 经验文件自动向量化 → numpy 存储 | `sentence-transformers`（bge-m3） |
 | 2 | `list_experiences` 支持语义检索 | 阶段 1 |
-| 3 | LangChain Agent 自动推断用户画像 | `langchain`, LLM API |
+| 3 | LLM 自动推断用户画像 | LLM API |
 | 4 | 知识图谱关联推荐前置知识点 | 阶段 1 |
 
 ### V3 — 远期方向

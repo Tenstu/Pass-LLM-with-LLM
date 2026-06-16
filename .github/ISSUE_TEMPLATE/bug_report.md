@@ -1,33 +1,33 @@
 ---
-name: Bug Report
+name: Bug Report / 缺陷报告
 about: Report a bug or incorrect behavior in a Skill or MCP tool
 title: "[bug] "
 labels: bug
 assignees: ''
 ---
 
-## 描述
+## Description / 描述
 
-简要描述遇到的问题。
+Briefly describe the problem.
 
-## 复现步骤
+## Reproduction Steps / 复现步骤
 
-1. 调用 Skill: `Skill(skill="...")`
-2. 输入内容: ...
-3. 观察到的行为: ...
+1. Call Skill: `Skill(skill="...")`
+2. Input: ...
+3. Observed behavior: ...
 
-## 期望行为
+## Expected Behavior / 期望行为
 
-描述你期望的正确行为。
+Describe the correct behavior you expected.
 
-## 环境信息
+## Environment / 环境信息
 
-- Claude Code 版本:
+- Claude Code version:
 - IDE (VS Code / CLI):
 - Model Provider:
-- exam-memory MCP 是否启用: 是 / 否
-- Python 版本 (如涉及 MCP):
+- exam-memory MCP enabled: Yes / No
+- Python version (if MCP-related):
 
-## 相关截图或日志
+## Screenshots or Logs / 相关截图或日志
 
-如适用，粘贴错误信息或截图。
+Paste error messages or screenshots if applicable.
