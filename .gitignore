@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 项目内临时文件
+input.txt
+transformer-forward-pass.md
+transformer-review.md
+
+# 考试经验沉淀系统 - 运行时数据
+exam_memory/
+
+# 个人备考数据（保留目录框架，忽略实际数据文件）
+# HANDOFF.md 作为模板跟踪（每轮备考时填写具体数据，提交前应清空）
+daily/*
+!daily/README.md
+
+progress/choice-questions/*
+!progress/choice-questions/.gitkeep
+progress/study-planning/*
+!progress/study-planning/.gitkeep
+progress/exam-analysis/*
+!progress/exam-analysis/.gitkeep
+progress/task-board/*
+!progress/task-board/.gitkeep
+progress/reviews/*
+!progress/reviews/.gitkeep
+
+# MCP 与个人记忆工具（仅本地，不入 git）
+.mcp.json
+.claude/
+.chatmem/
+.mempalace/
