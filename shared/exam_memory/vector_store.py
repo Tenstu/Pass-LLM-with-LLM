@@ -21,6 +21,8 @@ from typing import Any
 import numpy as np
 
 from exam_memory.embedding import encode_safe, EmbeddingError
+from exam_memory.frontmatter import parse_frontmatter as _parse_frontmatter
+from exam_memory.frontmatter import body_text as _extract_text
 
 # ── 路径 ─────────────────────────────────────────────────────
 
@@ -29,40 +31,11 @@ VECTOR_DIR = BASE_DIR / "vectorstore"
 EMB_PATH = VECTOR_DIR / "embeddings.npy"
 META_PATH = VECTOR_DIR / "metadata.json"
 
-VECTOR_DIR.mkdir(parents=True, exist_ok=True)
-
 # ── 类型别名 ─────────────────────────────────────────────────
 
 _TextOrMeta = tuple[str, dict[str, Any]]   # (full_text, metadata)
 
 # ── 辅助 ─────────────────────────────────────────────────────
-
-def _parse_frontmatter(text: str) -> dict[str, Any]:
-    """解析 Markdown YAML frontmatter，将 date 转为 str 以保证 JSON 序列化。"""
-    if not text.startswith("---"):
-        return {}
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return {}
-    try:
-        import yaml
-        meta = yaml.safe_load(parts[1]) or {}
-        # YAML 的 2026-06-15 会被解析为 date 对象 → 转 str
-        for k, v in meta.items():
-            if hasattr(v, "isoformat"):
-                meta[k] = v.isoformat()
-        return meta
-    except Exception:
-        return {}
-
-
-def _extract_text(content: str) -> str:
-    """从 Markdown 提取正文（去掉 frontmatter）。"""
-    if content.startswith("---"):
-        parts = content.split("---", 2)
-        return parts[2].strip() if len(parts) >= 3 else content
-    return content
-
 
 def _load_full_text(filename: str, exp_dir: Path) -> str:
     """按文件名从 experiences/ 加载完整 Markdown。找不到返回空串。"""
@@ -106,6 +79,7 @@ class NumpyVectorStore:
 
     def save(self) -> None:
         if self._embs is not None and self._meta:
+            VECTOR_DIR.mkdir(parents=True, exist_ok=True)
             np.save(str(EMB_PATH), self._embs)
             META_PATH.write_text(
                 json.dumps(self._meta, ensure_ascii=False, indent=2),
@@ -216,6 +190,7 @@ class NumpyVectorStore:
             results.append({
                 "score": round(s, 4),
                 "text": full_text,
+                "canonical_key": meta.get("file_name", meta.get("id", "")),
                 "metadata": meta,
             })
         return results

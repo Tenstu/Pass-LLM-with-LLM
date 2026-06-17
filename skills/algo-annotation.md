@@ -22,7 +22,7 @@ The skill focuses on making the *why* visible, not just the *what*.
 When invoked, the skill produces annotated Python code with Chinese comments and, when needed,
 natural-language explanations of algorithm logic. Annotations follow the repository's established
 style: stage-separator comments, line-level Chinese comments, and `# [防错]` (pitfall) markers
-linked to `algorithms/mistake_log.md`.
+linked to `targets/{target}/mistake_log.md`.
 
 ## Core Principles
 
@@ -36,7 +36,7 @@ Apply these principles when generating annotations or explanations.
 4. Correct misconceptions precisely — name the exact step that is wrong and give the
    correct understanding. Avoid vague phrases like "you might be confused."
 5. Close each explanation with a single sentence that captures the core invariant or trick.
-6. Always cross-reference `algorithms/mistake_log.md` for the algorithm's known WA patterns
+6. Always cross-reference `targets/{target}/mistake_log.md` for the algorithm's known WA patterns
    and annotate relevant lines with `# [防错]`.
 
 ## Annotation Checklist
@@ -116,7 +116,7 @@ Follow these steps in order for each annotation request.
 4. Trace a small example manually when the logic is non-trivial. Show the state after
    each significant step.
 5. Summarize in one sentence — the core invariant, trick, or key insight.
-6. Cross-reference `algorithms/mistake_log.md`. If the algorithm has recorded WA patterns,
+6. Cross-reference `targets/{target}/mistake_log.md`. If the algorithm has recorded WA patterns,
    add `# [防错]` annotations to the relevant lines. If no entry exists, proceed without
    forcing a pitfall note.
 

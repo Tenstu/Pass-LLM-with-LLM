@@ -9,6 +9,7 @@ import glob
 import json
 import os
 import re
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -18,12 +19,41 @@ from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
 from mcp.types import ServerCapabilities, ToolsCapability, Tool, TextContent
 
+from exam_memory.knowledge_source import DirConnector
+from exam_memory.source_registry import SourceRegistry
+from exam_memory.frontmatter import parse_frontmatter as _parse_frontmatter
+
 # ── 路径常量 ──────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent
 EXPERIENCES_DIR = BASE_DIR / "experiences"
 PROFILE_PATH = BASE_DIR / "user_profile.json"
 
 EXPERIENCES_DIR.mkdir(parents=True, exist_ok=True)
+
+# ── SourceRegistry（知识源生命周期管理）──────────────────────
+_registry = SourceRegistry()
+
+SOURCES_YAML_PATH = BASE_DIR / "sources.yaml"
+
+# ── Store 实例缓存（避免每次 MCP tool call 重建）────────────────
+_fts_cache: "FTSStore | None" = None
+_vec_cache: "NumpyVectorStore | None" = None
+
+
+def _get_fts():
+    global _fts_cache
+    if _fts_cache is None:
+        from exam_memory.fts_store import FTSStore
+        _fts_cache = FTSStore()
+    return _fts_cache
+
+
+def _get_vec():
+    global _vec_cache
+    if _vec_cache is None:
+        from exam_memory.vector_store import NumpyVectorStore
+        _vec_cache = NumpyVectorStore()
+    return _vec_cache
 
 # ── 工具 JSON Schema ─────────────────────────────────────
 TOOL_SCHEMAS = [
@@ -117,6 +147,54 @@ TOOL_SCHEMAS = [
             "required": ["query"],
         },
     ),
+    Tool(
+        name="mount_source",
+        description="读取 sources.yaml 配置文件，为每个 source 创建 DirConnector 并挂载到 registry。",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "config_path": {
+                    "type": "string",
+                    "description": "sources.yaml 路径（可选，默认 BASE_DIR/sources.yaml）",
+                },
+            },
+        },
+    ),
+    Tool(
+        name="list_sources",
+        description="返回已挂载知识源的状态列表。",
+        inputSchema={"type": "object", "properties": {}},
+    ),
+    Tool(
+        name="fetch_from_source",
+        description="从指定知识源检索相关内容。",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "source_name": {"type": "string", "description": "知识源名称"},
+                "topic": {"type": "string", "description": "搜索关键词"},
+                "limit": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "最大返回 chunk 数",
+                },
+            },
+            "required": ["source_name", "topic"],
+        },
+    ),
+    Tool(
+        name="refresh_source",
+        description="刷新指定知识源或全部知识源（重新扫描目录）。",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "source_name": {
+                    "type": "string",
+                    "description": "知识源名称（可选，不传则刷新全部）",
+                },
+            },
+        },
+    ),
 ]
 
 
@@ -133,23 +211,10 @@ def _next_seq(prefix: str) -> int:
     existing = glob.glob(pattern)
     max_n = 0
     for f in existing:
-        m = re.search(r"_(\d{3})\.md$", f)
+        m = re.search(r"_(\d{3})(?:_[0-9a-f]{6})?\.md$", f)
         if m:
             max_n = max(max_n, int(m.group(1)))
     return max_n + 1
-
-
-def _parse_frontmatter(text: str) -> dict:
-    """解析 Markdown frontmatter（YAML between ---）。"""
-    if not text.startswith("---"):
-        return {}
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return {}
-    try:
-        return yaml.safe_load(parts[1]) or {}
-    except yaml.YAMLError:
-        return {}
 
 
 def _load_all_experiences(type_filter: str) -> list[tuple[int, str]]:
@@ -205,8 +270,7 @@ def _list_experiences_semantic(
     exp_type: str, query: str, limit: int
 ) -> list[TextContent]:
     try:
-        from exam_memory.vector_store import NumpyVectorStore
-        store = NumpyVectorStore()
+        store = _get_vec()
         results = store.search(query, top_k=limit, type_filter=exp_type)
     except Exception:
         results = []
@@ -221,6 +285,59 @@ def _list_experiences_semantic(
     for i, r in enumerate(results, 1):
         score = r["score"]
         parts.append(f"### 经验 {i} (相关度: {score})\n{r['text']}")
+    return [TextContent(type="text", text="\n---\n".join(parts))]
+
+
+def _list_experiences_hybrid(
+    exp_type: str, query: str, limit: int
+) -> list[TextContent]:
+    """混合检索：FTS BM25 + 向量 cosine，Weighted RRF 融合。"""
+    try:
+        from exam_memory.hybrid_search import hybrid_search
+
+        fts = _get_fts()
+        vec = _get_vec()
+        results = hybrid_search(query, fts, vec, limit=limit, exp_type=exp_type)
+    except Exception:
+        results = []
+
+    if not results:
+        return [TextContent(
+            type="text",
+            text=f"混合检索「{query}」在「{exp_type}」类型中未找到匹配经验。"
+        )]
+
+    parts = []
+    for i, r in enumerate(results, 1):
+        score = r["score"]
+        fts_s = r.get("fts_score")
+        vec_s = r.get("vec_score")
+        detail = ""
+        if fts_s is not None and vec_s is not None:
+            detail = f" (FTS:{fts_s} + 向量:{vec_s})"
+        parts.append(f"### 经验 {i} (相关度: {score}{detail})\n{r['text']}")
+    return [TextContent(type="text", text="\n---\n".join(parts))]
+
+
+def _list_experiences_fts(
+    exp_type: str, query: str, limit: int
+) -> list[TextContent]:
+    """纯 FTS 词法检索（无需 embedding 依赖）。"""
+    try:
+        store = _get_fts()
+        results = store.search(query, limit=limit, type_filter=exp_type)
+    except Exception:
+        results = []
+
+    if not results:
+        return [TextContent(
+            type="text",
+            text=f"词法检索「{query}」在「{exp_type}」类型中未找到匹配经验。"
+        )]
+
+    parts = []
+    for i, r in enumerate(results, 1):
+        parts.append(f"### 经验 {i} (BM25: {r['score']})\n{r.get('content', '')}")
     return [TextContent(type="text", text="\n---\n".join(parts))]
 
 
@@ -243,7 +360,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         query = arguments.get("query", "")
 
         if query:
-            return _list_experiences_semantic(exp_type, query, limit)
+            return _list_experiences_hybrid(exp_type, query, limit)
         else:
             return _list_experiences_legacy(exp_type, limit)
 
@@ -257,7 +374,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
         prefix = _type_prefix(exp_type)
         seq = _next_seq(prefix)
-        filename = f"{prefix}_{knowledge}_{seq:03d}.md"
+        safe_knowledge = re.sub(r'[^\w一-鿿-]', '_', knowledge).strip("_")
+        short_id = uuid.uuid4().hex[:6]
+        filename = f"{prefix}_{safe_knowledge}_{seq:03d}_{short_id}.md"
         filepath = EXPERIENCES_DIR / filename
 
         today = datetime.now().strftime("%Y-%m-%d")
@@ -273,13 +392,24 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         doc = f"---\n{yaml_str}---\n\n## {title}\n\n{content}\n"
         filepath.write_text(doc, encoding="utf-8")
 
-        # 静默向量化入库（失败不影响保存结果）
+        # 静默向量化 + FTS 入库（失败不影响保存结果）
         try:
-            from exam_memory.vector_store import NumpyVectorStore
-            store = NumpyVectorStore()
+            store = _get_vec()
             meta = dict(frontmatter)
             meta["file_name"] = filename
             store.upsert(filename, doc, meta)
+        except Exception:
+            pass
+
+        try:
+            fts = _get_fts()
+            fts.upsert(
+                canonical_key=filename,
+                title=title,
+                knowledge=knowledge,
+                content=content,
+                type=exp_type,
+            )
         except Exception:
             pass
 
@@ -288,11 +418,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     # ── inc_error_count ──
     if name == "inc_error_count":
         fp = arguments["file_path"]
-        # 允许传入完整路径或仅文件名
-        if os.sep in fp or "/" in fp:
-            target = Path(fp)
-        else:
-            target = EXPERIENCES_DIR / fp
+        # 始终在 EXPERIENCES_DIR 内解析，拒绝路径穿越
+        target = (EXPERIENCES_DIR / fp).resolve()
+        if not target.is_relative_to(EXPERIENCES_DIR.resolve()):
+            return [TextContent(type="text", text=f"非法文件路径: {fp}")]
 
         if not target.exists():
             return [TextContent(type="text", text=f"文件不存在: {target.name}")]
@@ -338,6 +467,92 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         query = arguments["query"]
         result = _search_ddg(query)
         return [TextContent(type="text", text=result)]
+
+    # ── mount_source ──
+    if name == "mount_source":
+        try:
+            config_path = Path(arguments.get("config_path", "")) if arguments.get("config_path") else SOURCES_YAML_PATH
+            if not config_path.exists():
+                return [TextContent(type="text", text=f"配置文件不存在: {config_path}")]
+            with open(config_path, encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+            sources_list = config.get("sources", [])
+            if not sources_list:
+                return [TextContent(type="text", text="sources.yaml 中无 source 定义")]
+
+            config_dir = config_path.parent
+            mounted = []
+            for src in sources_list:
+                src_type = src.get("type", "")
+                if src_type != "local_dir":
+                    continue
+                name_ = src["name"]
+                src_config = src.get("config", {})
+                path = config_dir / src_config.get("path", "")
+                if not path.exists() or not path.is_dir():
+                    mounted.append(f"{name_}(目录不存在: {path})")
+                    continue
+                glob_pattern = src_config.get("glob", "*.md")
+                processing = src.get("processing", {})
+                chunk_size = processing.get("chunk_size", 1600)
+                connector = DirConnector(name=name_, path=path, glob_pattern=glob_pattern, chunk_size=chunk_size)
+                if _registry.mount(connector):
+                    mounted.append(name_)
+                else:
+                    mounted.append(f"{name_}(已存在或挂载失败)")
+            return [TextContent(type="text", text=f"已挂载: {', '.join(mounted)}")]
+        except Exception as e:
+            return [TextContent(type="text", text=f"mount_source 失败: {e}")]
+
+    # ── list_sources ──
+    if name == "list_sources":
+        try:
+            sources = _registry.list_mounted()
+            if not sources:
+                return [TextContent(type="text", text="暂无已挂载知识源。")]
+            parts = []
+            for s in sources:
+                parts.append(f"- {s['name']} ({s['source_type']}) | connected={s['connected']} | topics={s['topic_count']}")
+            return [TextContent(type="text", text="\n".join(parts))]
+        except Exception as e:
+            return [TextContent(type="text", text=f"list_sources 失败: {e}")]
+
+    # ── fetch_from_source ──
+    if name == "fetch_from_source":
+        try:
+            source_name = arguments["source_name"]
+            topic = arguments["topic"]
+            limit = arguments.get("limit", 10)
+            chunks = _registry.fetch_from(source_name, topic, limit=limit)
+            if not chunks:
+                return [TextContent(type="text", text=f"源 '{source_name}' 未找到与 '{topic}' 相关的内容。")]
+            parts = []
+            for i, c in enumerate(chunks, 1):
+                parts.append(f"### Chunk {i} (来源: {c['source']})\n{c['text']}")
+            return [TextContent(type="text", text="\n---\n".join(parts))]
+        except Exception as e:
+            return [TextContent(type="text", text=f"fetch_from_source 失败: {e}")]
+
+    # ── refresh_source ──
+    if name == "refresh_source":
+        try:
+            source_name = arguments.get("source_name")
+            if source_name:
+                source = _registry.get(source_name)
+                if source is None:
+                    return [TextContent(type="text", text=f"知识源不存在: {source_name}")]
+                added = source.refresh()
+                return [TextContent(type="text", text=f"已刷新 '{source_name}'，新增 {added} 个文件。")]
+            else:
+                results = []
+                for s in _registry.list_mounted():
+                    src = _registry.get(s["name"])
+                    if src:
+                        added = src.refresh()
+                        results.append(f"- {s['name']}: 新增 {added} 个文件")
+                return [TextContent(type="text", text="全部刷新完成:\n" + "\n".join(results))]
+        except Exception as e:
+            return [TextContent(type="text", text=f"refresh_source 失败: {e}")]
 
     return [TextContent(type="text", text=f"未知工具: {name}")]
 

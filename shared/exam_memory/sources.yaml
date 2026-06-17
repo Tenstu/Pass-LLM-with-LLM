@@ -1,0 +1,16 @@
+# sources.yaml — 知识源声明式配置
+#
+# 每个 source 由 DirConnector 驱动，通过 MCP mount_source 工具加载。
+# path 相对于本文件所在目录。
+#
+# 未来扩展 type: github / web / s3 等。
+
+sources:
+  - name: "pdd-algo-notes"
+    type: "local_dir"
+    config:
+      path: "targets/pdd-algo/cheatsheets/"
+      glob: "*.md"
+    processing:
+      chunk_size: 1600
+      tags_from_filename: true

@@ -1,7 +1,7 @@
 ---
 name: solve-skeleton
 description: >
-  Bare-bones Python solve() skeletons for AI Lab campus recruitment exam OJ problems.
+  Bare-bones Python solve() skeletons for campus recruitment exam OJ problems.
   Use when the user asks for a solve() template, coding framework, OJ scaffold, or any of
   these Chinese trigger phrases: "解题框架", "解题模板", "solve骨架", "OJ模板", "ACM框架",
   "编程题结构", "solve()模板", "输入输出框架", "算法骨架", "解题规范", "代码模板", "框架代码",
@@ -124,5 +124,5 @@ If the problem has multiple test cases or unusual input format, pick an I/O mode
 - `references/algo-skeletons.md` — 8 algorithm templates with trigger keywords and complexity notes
 - `references/exam-patterns.md` — 6 exam-specific patterns (simulation, stack GCD, bracket, etc.)
 - `skills/algo-annotation.md` — adds Chinese line-level comments and `# [防错]` markers
-- `algorithms/mistake_log.md` — WA patterns by topic; algo-annotation cross-references this
+- `targets/{target}/mistake_log.md` — WA patterns by topic; algo-annotation cross-references this
 - `algorithms/python_oj_template.py` — utility function library (extended toolkit, not skeleton)
