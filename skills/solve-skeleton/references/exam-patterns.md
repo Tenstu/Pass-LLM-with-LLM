@@ -1,6 +1,6 @@
 # Exam Pattern Templates
 
-AI Lab campus recruitment exam highest-frequency patterns. Replace the Algorithm phase
+campus recruitment exam highest-frequency patterns. Replace the Algorithm phase
 in the standard skeleton with the matching template below.
 See `SKILL.md` section 3 (Template Selection) for how to choose.
 

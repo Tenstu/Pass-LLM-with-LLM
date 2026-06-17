@@ -32,16 +32,16 @@ description: >
 
 | 文件 | 读取内容 | 报告章节 |
 |------|---------|---------|
-| `progress/task-board/task-board.md` | 任务状态 (Done/Today/Pending) | 任务进度 |
-| `progress/study-planning/readiness-score.md` | 各维度自评分 + 考试策略 | 就绪度趋势 |
-| `progress/exam-analysis/exam-style-analysis.md` | 出题风格、频率表、趋势预测、mock 成绩 | 出题风格分析 |
-| `algorithms/mistake_log.md` | WA 记录、Root Cause 分布、Redo Date | 错题待修复清单 |
-| `algorithms/topic_checklist.md` | P0/P1/P2 模式覆盖 | 知识点覆盖度 |
-| `daily/YYYY-MM-DD.md` (今天) | Problem Log、正确率统计 | 今日练习总结 |
-| `daily/YYYY-MM-DD.md` (昨天) | 对比昨天进度 | 进步/退步对比 |
-| `progress/choice-questions/round*.md` | 选择题 Round 成绩 | 选择题趋势 |
-| `progress/exam-analysis/exam-style-analysis.md` §6 | 知识点掌握进度表 | 掌握进度 |
-| `progress/reviews/review-YYYY-MM-DD.md` | 周期性复习总结（可选） | 复习总结 |
+| `targets/{target}/progress/task-board/task-board.md` | 任务状态 (Done/Today/Pending) | 任务进度 |
+| `targets/{target}/progress/study-planning/readiness-score.md` | 各维度自评分 + 考试策略 | 就绪度趋势 |
+| `targets/{target}/progress/exam-analysis/exam-style-analysis.md` | 出题风格、频率表、趋势预测、mock 成绩 | 出题风格分析 |
+| `targets/{target}/mistake_log.md` | WA 记录、Root Cause 分布、Redo Date | 错题待修复清单 |
+| `targets/{target}/topic_checklist.md` | P0/P1/P2 模式覆盖 | 知识点覆盖度 |
+| `shared/daily/YYYY-MM-DD.md` (今天) | Problem Log、正确率统计 | 今日练习总结 |
+| `shared/daily/YYYY-MM-DD.md` (昨天) | 对比昨天进度 | 进步/退步对比 |
+| `targets/{target}/progress/choice-questions/round*.md` | 选择题 Round 成绩 | 选择题趋势 |
+| `targets/{target}/progress/exam-analysis/exam-style-analysis.md` §6 | 知识点掌握进度表 | 掌握进度 |
+| `targets/{target}/progress/reviews/review-YYYY-MM-DD.md` | 周期性复习总结（可选） | 复习总结 |
 
 ## 工作流
 
@@ -79,35 +79,35 @@ digraph review {
 
 使用 Glob 查找文件路径（文件名可能含日期变体），然后读取每个文件提取以下指标：
 
-1. progress/task-board/task-board.md
+1. targets/{target}/progress/task-board/task-board.md
    返回：{ total: int, done: int, today: int, pending: int }
 
-2. progress/study-planning/readiness-score.md
+2. targets/{target}/progress/study-planning/readiness-score.md
    返回：{ latest_date: str, scores: { 算法: x/50, 数学: x/15, AI_ML: x/25, 项目: x/5, 后勤: x/5 } }
    如果最新行是占位符（/50 等），取上一行有实际数字的行。
 
-3. algorithms/mistake_log.md
+3. targets/{target}/mistake_log.md
    返回：{ total_entries: int, root_cause_counts: { pattern: n, proof: n, python: n },
            due_today: [ { problem, topic, root_cause, fix_rule } ],
            due_tomorrow: [ { problem, topic, root_cause, fix_rule } ] }
    Redo Date <= 今天 = due_today，= 明天 = due_tomorrow。
 
-4. algorithms/topic_checklist.md
+4. targets/{target}/topic_checklist.md
    返回：{ P0: { total, covered, uncovered_list },
            P1: { total, covered, uncovered_list },
            P2: { total, covered, uncovered_list } }
    "covered" = 有对应 solutions_batch.py 实现或 practice/ 文件。
 
-5. daily/ 目录下今天的文件（如 daily/2026-06-15.md）
+5. shared/daily/ 目录下今天的文件（如 shared/daily/2026-06-15.md）
    返回：{ ac_count: int, total_count: int, new_wa: n, mock_score: str | null }
 
-6. daily/ 目录下昨天的文件
+6. shared/daily/ 目录下昨天的文件
    返回：{ ac_count: int, total_count: int } （用于对比）
 
-7. progress/choice-questions/round*.md
+7. targets/{target}/progress/choice-questions/round*.md
    返回：{ rounds: [ { round, date, single_score, multi_score, total, main_errors } ] }
 
-8. progress/exam-analysis/exam-style-analysis.md
+8. targets/{target}/progress/exam-analysis/exam-style-analysis.md
    返回：{ mastery: { confirmed: n, struggling: n, blind_spot: n, unknown: n },
            mastery_details: { confirmed: [...], struggling: [...], blind_spot: [...], unknown: [...] },
            mock_score: str | null,
@@ -128,6 +128,8 @@ digraph review {
 
 ### 阶段三：输出
 
+输出一份可直接执行的进度报告。报告必须使用下方固定 8 节结构；缺失数据的章节保留标题并写"暂无数据"，不要把后续章节提前改号。
+
 ## 降级处理（数据源缺失时）
 
 任何一个数据源文件缺失或为空时，**跳过对应章节并在报告中标注"暂无数据"**，不要编造数字。
@@ -135,8 +137,8 @@ digraph review {
 | 缺失文件 | 对应章节 | 处理方式 |
 |----------|---------|---------|
 | `mistake_log.md` 为空或无条目 | 三、错题待修复 | 输出"暂无错题记录"，今日必做清单跳过错题修复项 |
-| 今天无 `daily/YYYY-MM-DD.md` | 六、今日练习总结 | 输出"今日尚无练习记录" |
-| 昨天无 `daily/YYYY-MM-DD.md` | 二、就绪度趋势 | 跳过对比，仅输出最新分数 |
+| 今天无 `shared/daily/YYYY-MM-DD.md` | 六、今日练习总结 | 输出"今日尚无练习记录" |
+| 昨天无 `shared/daily/YYYY-MM-DD.md` | 二、就绪度趋势 | 跳过对比，仅输出最新分数 |
 | 无 `choice_q_round*.md` | 五、选择题趋势 | 输出"暂无选择题模拟记录" |
 | `readiness_score.md` 全部行为占位符 | 二、就绪度趋势 | 输出"未自评——建议先执行自评打分" |
 | `topic_checklist.md` 缺失 | 四、知识点覆盖度 | 输出"暂无知识点清单" |
@@ -204,13 +206,13 @@ Root Cause 分布：pattern(X) / proof(X) / python(X)
 | R1 | MM-DD | X/24 | X/28 | X/52 | ... |
 | R2 | MM-DD | X/24 | X/28 | X/52 | ... |
 
-### 七、今日练习总结（如有 Problem Log）
+### 六、今日练习总结（如有 Problem Log）
 
 - AC：X/Y 题
 - 新增 WA：N 条
 - 薄弱点：[列表]
 
-### 六-b、知识点掌握分布
+### 七、知识点掌握分布
 
 | Mastery | 数量 | 知识点 |
 |---------|------|--------|
@@ -221,7 +223,7 @@ Root Cause 分布：pattern(X) / proof(X) / python(X)
 
 **建议**：优先处理 blind_spot（立即重做同知识点变体），其次是 struggling（安排明日 Redo）。
 
-### 七、今日必做清单
+### 八、今日必做清单
 
 1. [ ] **错题修复**：重做到期错题 [题名]
 2. [ ] **模式练习**：补齐 [未覆盖的 P0/P1 模式]
@@ -293,8 +295,8 @@ else:
 
 | 输出内容 | 路径 | 说明 |
 |---------|------|------|
-| 自评打分 | `progress/study-planning/readiness-score.md` | 已有，保持不变 |
-| 周期性复习总结 | `progress/reviews/review-YYYY-MM-DD.md` | 周期性 review 时写入 |
+| 自评打分 | `targets/{target}/progress/study-planning/readiness-score.md` | 已有，保持不变 |
+| 周期性复习总结 | `targets/{target}/progress/reviews/review-YYYY-MM-DD.md` | 周期性 review 时写入 |
 | 考前速查模式 | 对话中（不写文件） | 保持轻量 |
 | 进度报告 | 对话中（不写文件） | 每次调用时即时生成 |
 
@@ -304,9 +306,9 @@ else:
 - `choice-q-drill` — 答题结束后可调用本 skill 生成 session 总结
 - `algo-annotation` — 读取 mistake_log 中的防错规则，与本 skill 共享数据源
 - `exam-assistant` — MCP 增强的经验检索，本 skill 纯本地
-- `progress/exam-analysis/exam-style-analysis.md` — 出题风格、频率表、趋势预测（**新增核心数据源**）
-- `progress/study-planning/readiness-score.md` — 本 skill 可更新自评分
-- `progress/task-board/task-board.md` — 本 skill 读取任务状态
-- `algorithms/mistake_log.md` — 核心错题数据源
-- `progress/reviews/review-YYYY-MM-DD.md` — 周期性复习总结输出
-- `algorithms/topic_checklist.md` — 知识点覆盖数据源
+- `targets/{target}/progress/exam-analysis/exam-style-analysis.md` — 出题风格、频率表、趋势预测（**新增核心数据源**）
+- `targets/{target}/progress/study-planning/readiness-score.md` — 本 skill 可更新自评分
+- `targets/{target}/progress/task-board/task-board.md` — 本 skill 读取任务状态
+- `targets/{target}/mistake_log.md` — 核心错题数据源
+- `targets/{target}/progress/reviews/review-YYYY-MM-DD.md` — 周期性复习总结输出
+- `targets/{target}/topic_checklist.md` — 知识点覆盖数据源

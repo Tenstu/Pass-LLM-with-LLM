@@ -1,7 +1,7 @@
 # Root Cause Tag Library
 
 > solve-analyze skill 的根因标签库。分析报告中引用这些标签来分类错误根因。
-> 标签与 `algorithms/mistake_log.md` 的 Root Cause 列对齐。
+> 标签与 `targets/{target}/mistake_log.md` 的 Root Cause 列对齐。
 > 新增标签需同步更新本文件和 comparison-template.md 的标签说明。
 > 创建日期：2026-06-16 | 基于 mistake_log.md 23 条实际错误提取
 
@@ -177,7 +177,7 @@ When analyzing user code, apply tags in this priority order:
 
 ## Tag-Mistake Log Alignment
 
-This table shows how tags in this file map to the Root Cause column in `algorithms/mistake_log.md`:
+This table shows how tags in this file map to the Root Cause column in `targets/{target}/mistake_log.md`:
 
 | Root Cause in mistake_log | Tag in root-cause-tags.md | Category | Count |
 |--------------------------|--------------------------|----------|-------|

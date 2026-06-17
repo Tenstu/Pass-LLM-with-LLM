@@ -22,11 +22,14 @@ Thumbs.db
 input.txt
 transformer-forward-pass.md
 transformer-review.md
+.tmp/
 
 # 考试经验沉淀系统 - 运行时个人数据（代码和配置应被跟踪）
-exam_memory/experiences/
-exam_memory/user_profile.json
-exam_memory/vectorstore/
+shared/exam_memory/experiences/
+shared/exam_memory/bank/*.md
+!shared/exam_memory/bank/README.md
+shared/exam_memory/user_profile.json
+shared/exam_memory/vectorstore/
 
 # V2 临时验证脚本（不提交）
 _extract.py
@@ -34,10 +37,19 @@ _test_v2.py
 _verify_v2.py
 _verify_result.json
 
+# V2 review regression tests（dev-only，不同步 clean-main）
+tests/test_chunking.py
+tests/test_fts_store.py
+tests/test_hybrid_search.py
+tests/test_security.py
+tests/test_server.py
+tests/test_vector_store.py
+
 # 个人备考数据（保留目录框架，忽略实际数据文件）
 # HANDOFF.md 作为模板跟踪（每轮备考时填写具体数据，提交前应清空）
 daily/*
 !daily/README.md
+shared/daily/*.md
 
 progress/choice-questions/*
 !progress/choice-questions/.gitkeep
@@ -49,13 +61,25 @@ progress/task-board/*
 !progress/task-board/.gitkeep
 progress/reviews/*
 !progress/reviews/.gitkeep
+shared/progress/**
+!shared/progress/README.md
+!shared/progress/**/.gitkeep
+targets/*/progress/**
+!targets/*/progress/**/.gitkeep
+targets/*/mistake_log.md
+targets/*/mock_exam_log.md
 
 # MCP 与个人记忆工具（仅本地，不入 git）
 .mcp.json
 .claude/
+.codex/
+.serena/
 .chatmem/
 .mempalace/
 
 # 个人分支私有文件（dev-only，不允许合并到 clean-main）
 skills/branch-ops.md
-docs/branch-workflow.md
+skills/harness-dev-flow/
+skills/dev-review-flow/
+docs/
+prompts/review-fix-session-prompt.md

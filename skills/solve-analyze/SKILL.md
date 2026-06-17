@@ -179,7 +179,7 @@ Run two analysis tracks concurrently. **Only used when triage routes to full dia
    - Missing `.strip()` on string reads
    - Missing `if __name__ == "__main__"` guard
    - Stale heap entries in Dijkstra (missing `if d != dist[u]: continue`)
-4. Cross-check against `algorithms/mistake_log.md` for known WA/TLE patterns in the same
+4. Cross-check against `targets/{target}/mistake_log.md` for known WA/TLE patterns in the same
    algorithm topic.
 5. Mark each suspicious line with a line reference and a preliminary root cause tag.
 
@@ -303,9 +303,9 @@ The report ends with a summary table of feedback actions taken:
 
 | Action | Target | Status |
 |--------|--------|--------|
-| mistake_log append | `algorithms/mistake_log.md` | Done / Skipped |
-| user_profile update | MCP `update_user_profile` | Done / Skipped (MCP unavailable) |
-| experience check | MCP `list_experiences` | Match found (inc) / New (asked user) / Skipped |
+| mistake_log append | `targets/{target}/mistake_log.md` | Done / Skipped |
+| user_profile update | MCP `mcp__exam-memory__update_user_profile` | Done / Skipped (MCP unavailable) |
+| experience check | MCP `mcp__exam-memory__list_experiences` | Match found (inc) / New (asked user) / Skipped |
 ```
 
 ## 5. Feedback Loop Integration
@@ -315,7 +315,7 @@ across the entire harness.
 
 ### 5a. -> mistake_log.md (Automatic)
 
-Root cause tags are appended to `algorithms/mistake_log.md` under the matching topic section.
+Root cause tags are appended to `targets/{target}/mistake_log.md` under the matching topic section.
 
 **Append logic:**
 
@@ -405,18 +405,18 @@ automatically offer to invoke algo-annotation after the report is delivered.
 | `skills/solve-skeleton/references/exam-patterns.md` | Upstream | 6 exam-specific patterns used by Agent B when standard algo templates do not match |
 | `skills/solve-skeleton/references/io-modes.md` | Upstream | I/O mode templates for generating correct input/output in the standard solution |
 | `skills/algo-annotation.md` | Downstream | Adds `# [防错]` markers to code using root cause tags from this skill's report |
-| `algorithms/mistake_log.md` | Feedback target | Error patterns by topic; this skill appends new entries and updates root cause summary |
+| `targets/{target}/mistake_log.md` | Feedback target | Error patterns by topic; this skill appends new entries and updates root cause summary |
 | `skills/solve-analyze/references/root-cause-tags.md` | Internal | Root cause tag definitions and matching rules |
 | `skills/solve-analyze/references/comparison-template.md` | Internal | Markdown template for the structured comparison report |
 
 ## 7. MCP Dependency Matrix
 
-| MCP Tool | Full Name | Required? | Graceful Degradation |
-|----------|-----------|-----------|---------------------|
-| `list_experiences` | `mcp__exam-memory__list_experiences` | Optional | Skip experience matching; report "MCP unavailable" in feedback summary |
-| `save_experience` | `mcp__exam-memory__save_experience` | Optional | Skip persistence; user's error pattern remains in mistake_log only |
-| `inc_error_count` | `mcp__exam-memory__inc_error_count` | Optional | Skip frequency tracking; error count stays stale |
-| `update_user_profile` | `mcp__exam-memory__update_user_profile` | Optional | Skip profile update; weakness data not recorded |
+| MCP Tool | Required? | Graceful Degradation |
+|----------|-----------|---------------------|
+| `mcp__exam-memory__list_experiences` | Optional | Skip experience matching; report "MCP unavailable" in feedback summary |
+| `mcp__exam-memory__save_experience` | Optional | Skip persistence; user's error pattern remains in mistake_log only |
+| `mcp__exam-memory__inc_error_count` | Optional | Skip frequency tracking; error count stays stale |
+| `mcp__exam-memory__update_user_profile` | Optional | Skip profile update; weakness data not recorded |
 
 **Rules:**
 
@@ -445,10 +445,10 @@ When MCP is unavailable, the skill still runs all local steps:
 | Comparison report | Full report | Full report |
 | Root cause tag extraction | Runs normally | Runs normally |
 | mistake_log.md write | Automatic | Automatic (local file) |
-| user_profile update | `update_user_profile` | **Skipped silently** |
-| Experience matching | `list_experiences` | **Skipped silently** |
-| Error count increment | `inc_error_count` | **Skipped silently** |
-| New experience save | `save_experience` (with user confirm) | **Skipped silently** |
+| user_profile update | `mcp__exam-memory__update_user_profile` | **Skipped silently** |
+| Experience matching | `mcp__exam-memory__list_experiences` | **Skipped silently** |
+| Error count increment | `mcp__exam-memory__inc_error_count` | **Skipped silently** |
+| New experience save | `mcp__exam-memory__save_experience` (with user confirm) | **Skipped silently** |
 
 The only observable difference is the feedback summary table at the end of the report:
 all MCP actions show "Skipped (MCP unavailable)" instead of "Done".

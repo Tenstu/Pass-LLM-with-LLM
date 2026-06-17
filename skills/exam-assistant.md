@@ -18,11 +18,11 @@ description: >
 
 | 工具 | 用途 |
 |------|------|
-| `list_experiences` | 按题型列出历史经验（error_count 降序） |
-| `save_experience` | 保存新经验条目 |
-| `inc_error_count` | 给某条经验的错误计数 +1 |
-| `get_user_profile` | 读取用户画像（强弱项、偏好） |
-| `update_user_profile` | 增量更新用户画像 |
+| `mcp__exam-memory__list_experiences` | 按题型列出历史经验（error_count 降序） |
+| `mcp__exam-memory__save_experience` | 保存新经验条目 |
+| `mcp__exam-memory__inc_error_count` | 给某条经验的错误计数 +1 |
+| `mcp__exam-memory__get_user_profile` | 读取用户画像（强弱项、偏好） |
+| `mcp__exam-memory__update_user_profile` | 增量更新用户画像 |
 | `WebSearch`（Claude Code 内置） | 联网搜索补充资料（不使用 MCP search_web） |
 
 # 工作流规则
@@ -30,14 +30,14 @@ description: >
 ## 1. 题型识别与经验加载
 
 - 用户发送题目后，首先判断类型：**单选题**、**多选题** 或 **算法题**。
-- **立即**调用 `list_experiences(type=对应类型, limit=5)`。
+- **立即**调用 `mcp__exam-memory__list_experiences(type=对应类型, limit=5)`。
 - 将返回的经验作为"先前记忆"融入思考。
 - 在回答开头注明：
   > 📚 根据您过往经验：（简略引用最相关的 1-2 条）
 
 ## 2. 用户画像加载
 
-- 对话开始时，调用 `get_user_profile()` 获取画像。
+- 对话开始时，调用 `mcp__exam-memory__get_user_profile()` 获取画像。
 - 画像影响解答风格：
   - `preferences.skip_basic_explanation = true` → 省略基础概念
   - `preferences.preferred_language` → 优先使用该语言写代码
@@ -63,11 +63,11 @@ description: >
 
 **记录流程**：
 
-1. 分析错误类型，调用 `list_experiences` 检查是否与已有经验匹配。
-2. **若匹配**：调用 `inc_error_count(file_path=匹配文件名)`。
+1. 分析错误类型，调用 `mcp__exam-memory__list_experiences` 检查是否与已有经验匹配。
+2. **若匹配**：调用 `mcp__exam-memory__inc_error_count(file_path=匹配文件名)`。
 3. **若不匹配**：
    - 询问用户："本次错误是一种新模式，是否存入经验库？"
-   - 用户确认后，调用 `save_experience`，参数：
+   - 用户确认后，调用 `mcp__exam-memory__save_experience`，参数：
      - `title`：简短描述（如"双指针未去重导致重复"）
      - `content`：包含**错误理解**、**正确解法**、**关键要点**
      - `type`：题型
@@ -89,7 +89,7 @@ description: >
 - 用户说"以后不用讲基础"、"直接给代码" → 更新 `preferences.skip_basic_explanation = true`
 - 用户提到喜欢/不喜欢某种呈现方式 → 更新对应 preference
 
-调用 `update_user_profile(diff={变更内容})` 传入变更。
+调用 `mcp__exam-memory__update_user_profile(diff={变更内容})` 传入变更。
 
 ## 6. 联网查询（可选）
 
@@ -104,7 +104,7 @@ description: >
 - 若经验文件本身超过 500 字，读取后**自动摘要关键点**，不全文粘贴。
   为什么：模型在长文本中容易丢失关键信息，摘要后反而更容易正确引用。
 - 每次回答中引用的经验不超过 2 条，其余作为内部参考。
-- **Agent 增强**：当同时需要 `get_user_profile()` + `list_experiences()` 时，可并行通过 Agent 采集，主上下文只接收精炼摘要。
+- **Agent 增强**：当同时需要 `mcp__exam-memory__get_user_profile()` + `mcp__exam-memory__list_experiences()` 时，可并行通过 Agent 采集，主上下文只接收精炼摘要。
 
 ## 8. 格式约束
 
@@ -116,5 +116,5 @@ description: >
 ## 9. Cross-References
 
 - `choice-q-drill` — 交互答题模式，在答题结束后调用本 skill 的 MCP 工具记录错误
-- `choice-q-create` — 出题模式，调用 `list_experiences` 获取跨会话经验来决定题目分配
-- `algorithms/mistake_log.md` — 本地错误日志（与 MCP 经验库互补维护）
+- `choice-q-create` — 出题模式，调用 `mcp__exam-memory__list_experiences` 获取跨会话经验来决定题目分配
+- `targets/{target}/mistake_log.md` — 本地错误日志（与 MCP 经验库互补维护）

@@ -1,23 +1,23 @@
 ---
 name: choice-q-drill
 description: >
-  Interactive quiz mode for AI Lab multiple-choice exam practice. Use this skill whenever
+  Interactive quiz mode for multiple-choice exam practice. Use this skill whenever
   the user wants to answer, quiz, drill, or practice multiple-choice questions — even if
   they just say "做题" or "考我一下" or "来一套". Trigger phrases: "答题", "开始答题",
   "做题", "交互答题", "选择题练习", "drill", "quiz mode", "开始模拟", "模拟考试",
   "做选择题", "回答选择题", "start quiz", "test me", "考我", "测验", "刷题", "做一套",
   "模拟一下", "开始刷", "练选择题". Also use after `choice-q-create` has generated a
   question set and the user wants to go through it, or when the user opens a
-  `progress/choice-questions/round*.md` file and says "开始". Reads question files and presents them
+  `targets/{target}/progress/choice-questions/round*.md` file and says "开始". Reads question files and presents them
   interactively using AskUserQuestion. After completion, updates both mistake_log.md and
   the exam-memory MCP server for cross-session persistence.
 ---
 
 # Choice Question Drill Skill
 
-Interactive quiz mode for AI Lab multiple-choice exam practice. Reads question files,
+Interactive quiz mode for multiple-choice exam practice. Reads question files,
 presents them one batch at a time using AskUserQuestion, scores immediately, tracks
-results, and updates both `algorithms/mistake_log.md` (local harness feedback) and
+results, and updates both `targets/{target}/mistake_log.md` (local harness feedback) and
 the exam-memory MCP server (cross-session persistence) after completion.
 
 The drill→feedback loop is what turns one-time mistakes into lasting knowledge. Without
@@ -70,14 +70,14 @@ AskUserQuestion:
 ```
 
 Present Q1-Q4 as a single batch (4 questions in one AskUserQuestion call),
-then Q5-Q8 as a second batch.
+then Q5-Q8 as a second batch, and so on until all single-choice questions are covered.
 
 ### For multi-choice questions (one at a time):
 
 ```
 AskUserQuestion:
   questions:
-    - question: "Q9. [Topic]\n\n[Question text]\n\n（多选，漏选得2分，多选/错选0分）"
+    - question: "Q9. [Topic]\n\n[Question text]\n\n（多选，漏选得部分分，多选/错选0分，分值见 exam_config.md）"
       header: "Q9 多选"
       multiSelect: true
       options:
@@ -91,19 +91,21 @@ AskUserQuestion:
           description: "[Option D text]"
 ```
 
-Present Q9-Q15 one by one (each is a separate AskUserQuestion call).
+Present Q{单选题数+1}-Q{总题数} one by one (each is a separate AskUserQuestion call).
 
 ## 3. Scoring Rules
 
+> **从 `targets/{target}/exam_config.md` 读取分值**。以下为默认规则，运行时以 exam_config 为准。
+
 After each batch/question, immediately show results:
 
-### Single-choice scoring (3 points each)
-- Correct: 3 points
+### Single-choice scoring (分值见 exam_config.md)
+- Correct: 满分
 - Wrong: 0 points
 
-### Multi-choice scoring (4 points each)
-- All correct (exact match): 4 points
-- Partial (subset of correct, no wrong): 2 points
+### Multi-choice scoring (分值见 exam_config.md)
+- All correct (exact match): 满分
+- Partial (subset of correct, no wrong): 部分分（见 exam_config.md）
 - Any wrong option selected: 0 points
 
 ### Scoring display format
@@ -115,11 +117,11 @@ After each batch:
 
 | 题号 | 你的答案 | 正确答案 | 得分 | 状态 |
 |------|----------|----------|------|------|
-| Q1 | B | C | 0/3 | ✗ |
-| Q2 | A | A | 3/3 | ✓ |
+| Q1 | B | C | 0/{分值} | ✗ |
+| Q2 | A | A | {分值}/{分值} | ✓ |
 
 **本批次得分**：3/6
-**累计得分**：3/52
+**累计得分**：3/{总分}
 ```
 
 ## 4. Answer Explanation
@@ -137,18 +139,18 @@ After scoring each batch, provide **brief** explanations (1-2 lines per question
 
 - Only explain wrong answers in detail.
 - For correct answers, just confirm with ✓.
-- Always include 防错 note if the topic has an entry in `mistake_log.md` or `list_experiences` returns a matching experience.
+- Always include 防错 note if the topic has an entry in `mistake_log.md` or `mcp__exam-memory__list_experiences` returns a matching experience.
 
 ### 4b. Per-Question Error Persistence (必须执行，不要等到最后)
 
 > **为什么在这里**：错误上下文最鲜活的时刻就是刚答完的时刻。等到最后批量处理时，模型已经疲劳，容易遗忘细节。每道错题答完就立即持久化，即使中途退出也不会丢失。
 >
-> **去重规则**：写入 mistake_log.md 前，先检查该题号（如 Q3）是否已在当前主题分表中出现。已存在 → 跳过 mistake_log 写入，仅执行 exam-memory MCP 更新（inc_error_count）；不存在 → 正常写入 mistake_log 表格行 + MCP save_experience。
+> **去重规则**：写入 mistake_log.md 前，先检查该题号（如 Q3）是否已在当前主题分表中出现。已存在 → 跳过 mistake_log 写入，仅执行 exam-memory MCP 更新（`mcp__exam-memory__inc_error_count`）；不存在 → 正常写入 mistake_log 表格行 + `mcp__exam-memory__save_experience`。
 
 After scoring each wrong/skipped answer, immediately persist to exam-memory MCP:
 
-1. Determine question type: Q1-Q8 = "单选题", Q9-Q15 = "多选题"
-2. **Dedup check for mistake_log.md**: Scan the relevant topic table in `algorithms/mistake_log.md` for a row with the same question identifier (e.g., "Q3 topic"). If found, skip §5b mistake_log write and go directly to MCP step.
+1. Determine question type: see `targets/{target}/exam_config.md` for which Q-numbers are 单选 vs 多选
+2. **Dedup check for mistake_log.md**: Scan the relevant topic table in `targets/{target}/mistake_log.md` for a row with the same question identifier (e.g., "Q3 topic"). If found, skip §5b mistake_log write and go directly to MCP step.
 3. Call `mcp__exam-memory__list_experiences(type=题型, limit=5)` to check for matches
 4. **Match found** (same topic + similar error pattern): call `mcp__exam-memory__inc_error_count(file_path=匹配文件名)`
 5. **No match**: call `mcp__exam-memory__save_experience` with:
@@ -188,14 +190,14 @@ AskUserQuestion:
 | User choice | Mastery level |
 |-------------|---------------|
 | 确定会 | `confirmed` |
-| 猜的但有道理 | `partial` |
+| 猜的但有道理 | `struggling` |
 | 完全不懂，猜的 | `blind_spot` |
 
-**When mastery is `blind_spot` or `partial`**, immediately persist to mistake_log.md AND exam-memory MCP (same workflow as §4b, but with Result = `lucky_pass` instead of `WA`):
+**When mastery is `blind_spot` or `struggling`**, immediately persist to mistake_log.md AND exam-memory MCP (same workflow as §4b, but with Result = `lucky_pass` instead of `WA`):
 
-1. Append row to the topic table in `algorithms/mistake_log.md`:
+1. Append row to the topic table in `targets/{target}/mistake_log.md`:
    ```
-   | MM-DD | QN topic | topic | lucky_pass | partial/confirmed | [root cause] | [fix rule] | MM-DD+1 |
+   | MM-DD | QN topic | topic | lucky_pass | struggling/blind_spot | [root cause] | [fix rule] | MM-DD+1 |
    ```
 2. Call `mcp__exam-memory__save_experience` with the same parameters as §4b (title, content, type, knowledge, difficulty), noting in the content that this was a lucky pass.
 3. Update the topic's mastery level in tracking.
@@ -204,7 +206,7 @@ AskUserQuestion:
 
 ## 5. Post-Session Update
 
-After all 15 questions are answered, produce a final summary and update files:
+After all questions are answered, produce a final summary and update files:
 
 ### 5a. Final Score Report
 
@@ -213,16 +215,16 @@ After all 15 questions are answered, produce a final summary and update files:
 
 | 指标 | 数值 |
 |------|------|
-| 单选正确率 | X/8 |
-| 多选全对 | X/7 |
+| 单选正确率 | X/{单选题数} |
+| 多选全对 | X/{多选题数} |
 | 多选部分分 | X 题 |
-| 总分 | XX/52 (XX%) |
+| 总分 | XX/{总分} (XX%) |
 ```
 
 ### 5b. Update mistake_log.md
 
 For each wrong answer, check dedup before appending to the relevant topic table in
-`algorithms/mistake_log.md`:
+`targets/{target}/mistake_log.md`:
 
 ```markdown
 | Date | Problem | Topic | Result | Mastery | Root Cause | Fix Rule | Redo Date |
@@ -238,7 +240,7 @@ For each wrong answer, check dedup before appending to the relevant topic table 
 |--------|-----------|---------|-----------|
 | WA | — | WA | MM-DD+1 |
 | Correct | 确定会 | confirmed | No redo date (or 2 days after) |
-| Correct | 猜的但有道理 | partial | MM-DD+1 |
+| Correct | 猜的但有道理 | struggling | MM-DD+1 |
 | Correct | 完全不懂，猜的 | lucky_pass | Same day (immediate review) |
 
 Also update:
@@ -249,18 +251,18 @@ Also update:
 
 > 主要持久化已移至 §4b（每题答完立即执行）。此处为兜底检查：
 > 若中途有错题因故未持久化，在此统一补录。
-> **去重**：先 list_experiences 匹配 → 匹配到则 inc_error_count，不新建。
+> **去重**：先调用 `mcp__exam-memory__list_experiences` 匹配 → 匹配到则调用 `mcp__exam-memory__inc_error_count`，不新建。
 
 ### 5c. Update daily plan file
 
-Append results to `daily/YYYY-MM-DD.md` Problem Log section:
+Append results to `shared/daily/YYYY-MM-DD.md` Problem Log section:
 
 ```markdown
 ### 选择题 Round N（交互模式）
 
-- **单选正确率**：X/8（XX%）— X/24 分
-- **多选正确率**：X/7 全对
-- **总分**：XX/52（XX%）
+- **单选正确率**：X/{单选题数}（XX%）— X/{单选总分} 分
+- **多选正确率**：X/{多选题数} 全对
+- **总分**：XX/{总分}（XX%）
 - **主要错因**：
   - [topic]（QN）— [brief cause]
 - **薄弱知识点**：[list]
@@ -318,7 +320,7 @@ If the user selects a non-recommended option, respect their choice but note the 
 To find available question sets:
 
 ```
-Glob: progress/choice-questions/round*.md
+Glob: targets/{target}/progress/choice-questions/round*.md
 ```
 
 If multiple files exist, ask the user which round to drill. If only one exists,
@@ -331,7 +333,7 @@ If no question file exists, suggest invoking `choice-q-create` first.
 Note the start time when drilling begins. After completion, report:
 - Total time taken
 - Average time per question
-- Comparison with target (30 min for 15 questions)
+- Comparison with target (见 exam_config.md)
 
 ## 9. Workflow
 
@@ -370,9 +372,9 @@ Note the start time when drilling begins. After completion, report:
 3. **Note start time** — for performance tracking
 4. **Single-choice batch 1** — AskUserQuestion with Q1-Q4 (multiSelect: false)
 5. **Score & explain** — immediate feedback after batch; for each wrong answer, immediately persist to exam-memory MCP (§4b); for each **correct** answer, ask confidence self-report (§4c)
-6. **Single-choice batch 2** — AskUserQuestion with Q5-Q8
+6. **Single-choice batch 2** — AskUserQuestion with Q5-Q8 (repeat batches until all single-choice covered)
 7. **Score & explain** — same persistence + confidence self-report logic
-8. **Multi-choice Q9-Q15** — AskUserQuestion one at a time (multiSelect: true)
+8. **Multi-choice** — AskUserQuestion one at a time (multiSelect: true), starting from Q{单选题数+1}
 9. **Score & explain + MCP persist + confidence self-report** — for each answer, persist errors to exam-memory MCP (§4b); for each correct answer, ask confidence self-report (§4c)
 10. **Final report** — aggregate scores, time, weak points
 11. **Update files** — [must] mistake_log.md (with Mastery column per §5b), [must] exam-memory MCP (per-question §4b + §4c + fallback §5b-2), [must] daily plan, [must] error classification
@@ -390,8 +392,8 @@ Note the start time when drilling begins. After completion, report:
 ## 10. Cross-References
 
 - `choice-q-create` — generates the question sets this skill drills
-- `algorithms/mistake_log.md` — error log to read (for 防错 notes) and update (after drilling)
-- `progress/choice-questions/round*.md` — question file source
-- `daily/YYYY-MM-DD.md` — daily plan to update with results
+- `targets/{target}/mistake_log.md` — error log to read (for 防错 notes) and update (after drilling)
+- `targets/{target}/progress/choice-questions/round*.md` — question file source
+- `shared/daily/YYYY-MM-DD.md` — daily plan to update with results
 - `exam-memory` MCP tools — cross-session error persistence (mcp__exam-memory__save_experience, mcp__exam-memory__inc_error_count)
 - `skills/exam-assistant.md` — MCP-backed exam assistant skill with full experience workflow

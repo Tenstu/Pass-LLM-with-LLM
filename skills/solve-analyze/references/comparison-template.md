@@ -116,7 +116,7 @@
 |------------|--------|-------------------|---------|
 | 有明确逻辑错误 | WA | WA | WA |
 | 逻辑正确但超时 | TLE | TLE | WA |
-| 逻辑正确但有隐患 | AC(有风险) | WA | partial |
+| 逻辑正确但有隐患 | AC(有风险) | WA | struggling |
 | 逻辑正确写法不优 | AC(可优化) | (不记录) | confirmed |
 
 ### 回流动作模板
@@ -134,7 +134,7 @@
 - `{{mastery}}` — 取自状态判定规则表的 "Mastery" 列
 - `{{root_cause_tag}}` — 主因标签（从根因标签库 `root-cause-tags.md` 匹配）
 - `{{fix_rule}}` — 一句话修正规则（从建议修正中提炼，不超过 60 字）
-- `{{redo_date}}` — 按 Mastery 级别参考计算（WA/lucky_pass/partial → +1 天，confirmed → 不设）
+- `{{redo_date}}` — 按 Mastery 级别参考计算（WA/lucky_pass/struggling → +1 天，confirmed → 不设）
 
 **防错规则追加格式**（仅当该标签尚无防错规则时）：
 ```
@@ -143,7 +143,7 @@
 
 追加到 mistake_log 对应主题分区的末尾，格式与现有条目一致。
 
-**MCP save_experience 参数**：
+**`mcp__exam-memory__save_experience` 参数**：
 - title: `{{topic}}: {{short_error_description}}`
 - content: full comparison report
 - type: "算法"
