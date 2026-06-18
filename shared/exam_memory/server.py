@@ -195,6 +195,54 @@ TOOL_SCHEMAS = [
             },
         },
     ),
+    Tool(
+        name="list_due_reviews",
+        description="列出项目中到期的复习项。使用 review_schedule 的 review-queue 文件。",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "description": "目标名称（如 pdd-algo），默认扫描 project_root/targets/ 下首个目标",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "检查日期 YYYY-MM-DD（可选，默认今天）",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "最大返回条数（默认 10）",
+                },
+            },
+        },
+    ),
+    Tool(
+        name="mark_review_result",
+        description="标记一条复习项的结果并自动更新下一次复习计划（SM-2 简化调度）。",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "description": "目标名称（如 pdd-algo）",
+                },
+                "review_id": {
+                    "type": "string",
+                    "description": "复习项 ID（如 RQ-20260617-001）",
+                },
+                "outcome": {
+                    "type": "string",
+                    "enum": ["again", "hard", "good", "easy"],
+                    "description": "复习结果：again=遗忘, hard=困难, good=良好, easy=轻松",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "复习日期 YYYY-MM-DD（可选，默认今天）",
+                },
+            },
+            "required": ["target", "review_id", "outcome"],
+        },
+    ),
 ]
 
 
@@ -554,6 +602,60 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         except Exception as e:
             return [TextContent(type="text", text=f"refresh_source 失败: {e}")]
 
+    # ── list_due_reviews ──
+    if name == "list_due_reviews":
+        try:
+            from exam_memory.review_cli import due as _due
+            target = arguments.get("target", "")
+            d = arguments.get("date", "")
+            from datetime import date as _date
+            today = _date.fromisoformat(d) if d else _date.today()
+            limit = arguments.get("limit", 10)
+
+            # Auto-detect target if not provided
+            if not target:
+                targets_dir = BASE_DIR.parent.parent / "targets"
+                if targets_dir.is_dir():
+                    targets = [d.name for d in targets_dir.iterdir() if d.is_dir() and d.name != "__pycache__"]
+                    if targets:
+                        target = targets[0]
+
+            if not target:
+                return [TextContent(type="text", text="未指定 target 且无法自动检测。")]
+
+            items = _due(target=target, today=today, project_root=BASE_DIR.parent.parent)
+            if not items:
+                return [TextContent(type="text", text=f"「{target}」暂无到期复习项。")]
+
+            parts = [f"### {target} 到期复习 ({len(items)} 项)\n"]
+            for item in items[:limit]:
+                parts.append(
+                    f"- **{item.review_id}** [{item.priority}] {item.topic}"
+                    f"\n  → {item.prompt}"
+                )
+            return [TextContent(type="text", text="\n".join(parts))]
+        except Exception as e:
+            return [TextContent(type="text", text=f"list_due_reviews 失败: {e}")]
+
+    # ── mark_review_result ──
+    if name == "mark_review_result":
+        try:
+            from exam_memory.review_cli import mark as _mark
+            target = arguments["target"]
+            review_id = arguments["review_id"]
+            outcome = arguments["outcome"]
+            d = arguments.get("date", "")
+            from datetime import date as _date
+            today = _date.fromisoformat(d) if d else _date.today()
+
+            ok = _mark(target=target, review_id=review_id, outcome=outcome, today=today, project_root=BASE_DIR.parent.parent)
+            if ok:
+                return [TextContent(type="text", text=f"复习项 {review_id} 已更新，结果: {outcome}。")]
+            else:
+                return [TextContent(type="text", text=f"未找到复习项: {review_id}")]
+        except Exception as e:
+            return [TextContent(type="text", text=f"mark_review_result 失败: {e}")]
+
     return [TextContent(type="text", text=f"未知工具: {name}")]
 
 
@@ -566,10 +668,15 @@ async def main():
             write_stream,
             InitializationOptions(
                 server_name="exam-memory",
-                server_version="1.0.0",
+                server_version="2.0.0",
                 capabilities=ServerCapabilities(tools=ToolsCapability()),
             ),
         )
+
+
+def sync_main() -> None:
+    """console_scripts 入口包装器：启动 async 事件循环。"""
+    asyncio.run(main())
 
 
 if __name__ == "__main__":

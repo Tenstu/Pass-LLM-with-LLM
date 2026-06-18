@@ -1,12 +1,19 @@
 # pass-llm-with-llm
 
-> Use LLM to pass LLM exams — a Claude Code Skills + MCP powered AI exam preparation engine
+> Use LLMs to pass LLM and algorithm exams — an education-focused Claude Code Skills + MCP exam-prep harness
 
-[中文文档](README_CN.md)
+[中文文档](README_CN.md) | Keywords: `education`, `exam-prep`, `llm`, `algorithm`, `claude-code`, `mcp`, `ai-agents`, `spaced-repetition`, `python-oj`
+
+## Why It Stands Out
+
+- **Education-first workflow**: turns practice into a repeatable study loop, not a pile of notes.
+- **Agent-ready structure**: predictable `skills/`, `targets/`, `shared/`, and `progress/` folders make it easy for coding agents and MCP tools to inspect.
+- **Closed-loop exam prep**: mistakes feed future annotations, choice-question drills, readiness reports, and planned review scheduling.
+- **Local by default**: Markdown files remain readable and versionable; MCP adds persistence and retrieval without becoming a hard dependency.
 
 ## What Is This
 
-An **execution harness**, not a knowledge base. It chains Claude Code's Skill mechanism into an automated closed loop: algorithm skeleton generation → solution diagnosis → annotation → mistake tracking → targeted question drilling.
+An **execution harness**, not a knowledge base. It chains Claude Code's Skill mechanism into an automated closed loop: algorithm skeleton generation → solution diagnosis → annotation → mistake tracking → targeted question drilling → review planning.
 
 Built for AI/算法岗位笔试 preparation, but the core Skill Pipeline is exam-agnostic and can be adapted to any written exam target.
 
@@ -16,7 +23,31 @@ Built for AI/算法岗位笔试 preparation, but the core Skill Pipeline is exam
 - **Mistake Feedback Loop**: WA/TLE errors auto-recorded, next problem auto-annotated with `# [防错]` markers
 - **Choice Question Engine**: targeted generation → interactive drill → instant scoring → weakness analysis
 - **MCP Experience Persistence** (optional): cross-session error pattern storage + user profiling via custom MCP Server
-- **Progress Tracking**: readiness score, coverage gaps, daily must-do list
+- **Progress and Review Tracking**: readiness score, coverage gaps, daily must-do list, and a planned spaced-review queue
+
+## Repository Topics
+
+Suggested GitHub topics for discoverability:
+
+```text
+education, exam-prep, llm, algorithm, python, claude-code, mcp, ai-agents,
+agent-workflow, spaced-repetition, study-tools, interview-prep, oj
+```
+
+## Agent and MCP Retrieval Hints
+
+If you are an agent, MCP client, or local retrieval tool, start here:
+
+| Need | Entry Point |
+|------|-------------|
+| Session bootstrap | `START_HERE.md` |
+| Project rules and skill routing | `AGENTS.md` |
+| Current handoff and target setup | `HANDOFF.md` |
+| Skills callable by an agent | `skills/` |
+| Target-specific exam material | `targets/{target}/` |
+| Shared MCP server and retrieval helpers | `shared/exam_memory/` |
+| Development roadmap | `docs/dev-roadmap.md` |
+| Review mechanism plan | `docs/plans/2026-06-17-review-mechanism-implementation-plan.md` |
 
 ## Quick Start
 
@@ -172,10 +203,18 @@ Upgrade `exam-memory` from keyword matching to semantic search:
 | 3 | LLM auto-infers user profile | LLM API |
 | 4 | Knowledge graph for prerequisite recommendations | Phase 1 |
 
+### V2.5 — Review Scheduling
+
+Bring spaced review into the active development path:
+
+- File-based review queue under `targets/{target}/progress/reviews/`
+- SM-2 inspired scheduling for mistakes, weak topics, and choice-question errors
+- Optional MCP tools for `list_due_reviews` and `mark_review_result`
+- Planned in [Review Mechanism Implementation Plan](docs/plans/2026-06-17-review-mechanism-implementation-plan.md)
+
 ### V3 — Long-term Directions
 
 - **Multimodal**: screenshot OCR → auto problem-type detection + experience retrieval
-- **Spaced repetition**: SM-2 based review scheduling
 - **Cross-device sync**: Git or WebDAV for experience files
 - **Analytics dashboard**: strength/weakness heatmap, error trends, review plan
 

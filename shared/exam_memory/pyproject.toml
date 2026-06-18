@@ -33,7 +33,8 @@ full = [
 ]
 
 [project.scripts]
-exam-memory = "exam_memory.server:main"
+exam-memory = "exam_memory.server:sync_main"
+review-schedule = "exam_memory.review_cli:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]

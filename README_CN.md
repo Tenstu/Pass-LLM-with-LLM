@@ -1,12 +1,19 @@
 # pass-llm-with-llm
 
-> 用 LLM 备考 LLM 笔试 — 基于 Claude Code Skills + MCP 的 AI 笔试备考引擎
+> 用 LLM 备考 LLM 与算法笔试 — 面向教育与备考场景的 Claude Code Skills + MCP 执行框架
 
-[English](README.md)
+[English](README.md) | 关键词：`education`、`exam-prep`、`llm`、`algorithm`、`claude-code`、`mcp`、`ai-agents`、`spaced-repetition`、`python-oj`
+
+## 项目亮点
+
+- **教育优先的学习闭环**：把刷题、诊断、错题、复盘组织成可重复执行的备考流程，而不是散乱笔记。
+- **Agent 友好的目录结构**：`skills/`、`targets/`、`shared/`、`progress/` 分区稳定，方便 coding agent 和 MCP 工具检索。
+- **闭环式笔试准备**：错题会回流到后续注释、选择题训练、就绪度报告，以及规划中的复习调度。
+- **默认本地可读**：Markdown 文件可人工阅读、可 Git 版本管理；MCP 只是增强持久化与检索，不是硬依赖。
 
 ## 这是什么
 
-一个**执行型备考框架**，不是知识库。它通过 Claude Code 的 Skill 机制，将算法骨架生成、解题诊断、代码标注、错题回流、选择题训练串联成自动化闭环。
+一个**执行型备考框架**，不是知识库。它通过 Claude Code 的 Skill 机制，将算法骨架生成、解题诊断、代码标注、错题回流、选择题训练、复习规划串联成自动化闭环。
 
 默认面向 AI/算法岗位笔试，核心 Skill Pipeline 与考试无关，可适配任意笔试目标。
 
@@ -16,7 +23,31 @@
 - **错题反馈闭环**：WA/TLE 自动记录，下次刷题自动标注 `# [防错]` 标记
 - **选择题引擎**：定向出题 → 交互答题 → 即时评分 → 弱点分析
 - **MCP 经验沉淀**（可选）：自定义 MCP Server 实现跨会话错误模式持久化 + 用户画像
-- **进度追踪**：就绪度评分、知识点覆盖缺口、每日必做清单
+- **进度与复习追踪**：就绪度评分、知识点覆盖缺口、每日必做清单，以及规划中的间隔复习队列
+
+## 仓库 Topics 建议
+
+建议在 GitHub 仓库设置这些 topics，提升检索与推荐命中：
+
+```text
+education, exam-prep, llm, algorithm, python, claude-code, mcp, ai-agents,
+agent-workflow, spaced-repetition, study-tools, interview-prep, oj
+```
+
+## Agent / MCP 检索入口
+
+如果你是 agent、MCP client 或本地检索工具，优先读取：
+
+| 需求 | 入口 |
+|------|------|
+| session 启动 | `START_HERE.md` |
+| 项目规则与 skill 路由 | `AGENTS.md` |
+| 当前交接与目标配置 | `HANDOFF.md` |
+| agent 可调用技能 | `skills/` |
+| 目标考试专属材料 | `targets/{target}/` |
+| 共享 MCP server 与检索辅助 | `shared/exam_memory/` |
+| 开发路线图 | `docs/dev-roadmap.md` |
+| 复习机制实现规划 | `docs/plans/2026-06-17-review-mechanism-implementation-plan.md` |
 
 ## 快速开始
 
@@ -172,10 +203,18 @@ OneFind 的 **folder source** 可以索引 `shared/exam_memory/experiences/` 目
 | 3 | LLM 自动推断用户画像 | LLM API |
 | 4 | 知识图谱关联推荐前置知识点 | 阶段 1 |
 
+### V2.5 — 复习调度
+
+把间隔复习纳入当前 dev 规划：
+
+- 在 `targets/{target}/progress/reviews/` 下维护文件式 review queue
+- 基于 SM-2 简化规则调度错题、薄弱知识点、选择题错误
+- 可选 MCP 工具：`list_due_reviews` 与 `mark_review_result`
+- 详见 [复习机制实现规划](docs/plans/2026-06-17-review-mechanism-implementation-plan.md)
+
 ### V3 — 远期方向
 
 - **多模态**：截图题目 OCR → 自动识别题型并检索经验
-- **间隔重复**：基于 SM-2 算法自动安排复习
 - **跨设备同步**：Git 或 WebDAV 同步经验文件
 - **可视化仪表盘**：强弱项热力图、错误趋势、复习计划
 
