@@ -138,8 +138,8 @@ The harness works in local Markdown mode first. These integrations add memory or
 | Tool | Role | Bundled? |
 |------|------|:---:|
 | `exam-memory` MCP | Cross-session mistake and experience persistence, user profile retrieval, optional semantic search support. | Yes |
-| ChatMem | Conversation-level recall for handoffs, continuation, and project history. | No |
-| MemPalace | Long-term structured knowledge storage and knowledge graph workflows. | No |
+| [ChatMem](https://github.com/Rimagination/ChatMem) | Conversation-level recall for handoffs, continuation, and project history. | No |
+| [MemPalace](https://github.com/MemPalace/mempalace) | Long-term structured knowledge storage and knowledge graph workflows. | No |
 | [OneFind](https://github.com/iawnfoanaowt/OneFind) | External local knowledge retrieval for existing Obsidian notes, Zotero libraries, or folders. | No |
 
 `exam-memory` is the write-through exam-prep memory layer in this project. OneFind is best treated as a read-oriented external retrieval layer for knowledge you already keep elsewhere. They are complementary rather than substitutes.

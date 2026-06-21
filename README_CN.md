@@ -138,8 +138,8 @@ spaced-repetition, local-first, knowledge-retrieval
 | 工具 | 作用 | 是否自带 |
 |------|------|:---:|
 | `exam-memory` MCP | 跨会话错题经验持久化、用户画像读取、可选语义检索支持。 | 是 |
-| ChatMem | 对话级记忆，用于交接、继续、项目历史回忆。 | 否 |
-| MemPalace | 长期结构化知识存储与知识图谱工作流。 | 否 |
+| [ChatMem](https://github.com/Rimagination/ChatMem) | 对话级记忆，用于交接、继续、项目历史回忆。 | 否 |
+| [MemPalace](https://github.com/MemPalace/mempalace) | 长期结构化知识存储与知识图谱工作流。 | 否 |
 | [OneFind](https://github.com/iawnfoanaowt/OneFind) | 外部本地知识库检索，可检索已有 Obsidian、Zotero 或本地文件夹。 | 否 |
 
 `exam-memory` 是本项目内负责写入备考经验的记忆层。OneFind 更适合作为只读的外部知识检索层，用来连接你已经维护在别处的学习资料。两者互补，不互相替代。
