@@ -4,8 +4,9 @@
 Usage:
     python scripts/check_main_extraction.py
     python scripts/check_main_extraction.py --staged-files path1 path2
+    python scripts/check_main_extraction.py --require-branch main
 
-Exit code: 0 = no leaks, 1 = denylist paths found.
+Exit code: 0 = no leaks, 1 = denylist paths or wrong branch found.
 """
 
 from __future__ import annotations
@@ -18,6 +19,9 @@ from pathlib import Path
 
 _DENYLIST = [
     "docs/",
+    ".mcp.json",
+    ".env",
+    ".env.*",
     ".claude/",
     ".codex/",
     ".serena/",
@@ -26,13 +30,17 @@ _DENYLIST = [
     "shared/exam_memory/user_profile.json",
     "shared/exam_memory/experiences/",
     "shared/exam_memory/vectorstore/",
+    "shared/exam_memory/bank/difficulty_stats.json",
+    "shared/exam_memory/bank/",
     "shared/daily/",
     "shared/progress/",
     "targets/*/progress/",
+    "targets/*/solutions/",
     "targets/*/mistake_log.md",
     "targets/*/mock_exam_log.md",
+    "HANDOFF.md",
     "prompts/review-fix-session-prompt.md",
-    "skills/branch-ops.md",
+    "skills/branch-ops/",
     "skills/harness-dev-flow/",
     "skills/dev-review-flow/",
     "tests/test_chunking.py",
@@ -42,6 +50,14 @@ _DENYLIST = [
     "tests/test_server.py",
     "tests/test_vector_store.py",
 ]
+
+
+def _is_allowed_root_public_example(path: str) -> bool:
+    return _path_parts(path) in ([".mcp.example.json"], [".env.example"])
+
+
+def _is_allowed_exam_bank_public_file(path: str) -> bool:
+    return _path_parts(path) == ["shared", "exam_memory", "bank", "README.md"]
 
 
 def _is_allowed_shared_progress_public_file(path: str) -> bool:
@@ -66,6 +82,14 @@ def _git_staged() -> list[str]:
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
+def _git_current_branch() -> str:
+    result = subprocess.run(
+        ["git", "branch", "--show-current"],
+        capture_output=True, text=True, check=True,
+    )
+    return result.stdout.strip()
+
+
 def _path_parts(path: str) -> list[str]:
     normalized = path.replace("\\", "/").strip("/")
     return [part for part in normalized.split("/") if part and part != "."]
@@ -81,7 +105,11 @@ def _parts_match(path_parts: list[str], pattern_parts: list[str]) -> bool:
 
 
 def _matches_denylist(path: str) -> str | None:
-    if _is_allowed_shared_progress_public_file(path):
+    if (
+        _is_allowed_root_public_example(path)
+        or _is_allowed_exam_bank_public_file(path)
+        or _is_allowed_shared_progress_public_file(path)
+    ):
         return None
     path_parts = _path_parts(path)
     for entry in _DENYLIST:
@@ -100,7 +128,17 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Check staged files for main-extraction denylist violations")
     ap.add_argument("--staged-files", nargs="*", default=None,
                     help="Explicit file list (default: read from git)")
+    ap.add_argument("--require-branch", default=None,
+                    help="Fail unless the current git branch matches this name")
     args = ap.parse_args()
+    if args.require_branch is not None:
+        current_branch = _git_current_branch()
+        if current_branch != args.require_branch:
+            print(
+                f"WRONG BRANCH - expected {args.require_branch}, got {current_branch}",
+                file=sys.stderr,
+            )
+            return 1
     files = args.staged_files if args.staged_files is not None else _git_staged()
     if not files:
         print("check_main_extraction: no staged files - nothing to check")

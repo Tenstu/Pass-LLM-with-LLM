@@ -34,6 +34,39 @@ def test_target_directory_wildcards_match_directory_and_children():
 def test_plain_directory_denylist_matches_nested_children():
     assert _matches_denylist("docs") == "docs/"
     assert _matches_denylist("docs/archive/dev-branch-review.md") == "docs/"
+    assert _matches_denylist("skills/branch-ops/SKILL.md") == "skills/branch-ops/"
+    assert (
+        _matches_denylist("skills/branch-ops/references/branch-workflow.md")
+        == "skills/branch-ops/"
+    )
+
+
+def test_runtime_bank_stats_are_dev_only():
+    assert (
+        _matches_denylist("shared/exam_memory/bank/difficulty_stats.json")
+        == "shared/exam_memory/bank/difficulty_stats.json"
+    )
+
+
+def test_sensitive_root_config_is_dev_only_with_public_examples_allowed():
+    blocked = [".mcp.json", ".env", ".env.local", ".env.production"]
+    for path in blocked:
+        assert _matches_denylist(path) is not None
+
+    assert _matches_denylist(".mcp.example.json") is None
+    assert _matches_denylist(".env.example") is None
+
+
+def test_bank_runtime_markdown_is_dev_only_except_readme():
+    assert _matches_denylist("shared/exam_memory/bank/custom.md") == "shared/exam_memory/bank/"
+    assert _matches_denylist("shared/exam_memory/bank/nested/custom.md") == "shared/exam_memory/bank/"
+    assert _matches_denylist("shared/exam_memory/bank/README.md") is None
+
+
+def test_target_solutions_and_handoff_require_manual_sanitization():
+    assert _matches_denylist("targets/ai-lab/solutions/foo.md") == "targets/*/solutions/"
+    assert _matches_denylist("targets/foo/bar/solutions/foo.md") is None
+    assert _matches_denylist("HANDOFF.md") == "HANDOFF.md"
 
 
 def test_shared_progress_public_allowlist_keeps_templates_publishable():
@@ -95,3 +128,27 @@ def test_git_staged_ignores_deletions(monkeypatch):
 
     assert _git_staged() == ["README.md"]
     assert "--diff-filter=ACMRTUXB" in calls[0]
+
+
+def test_main_rejects_wrong_required_branch(monkeypatch, capsys):
+    monkeypatch.setattr(
+        check_main_extraction.sys,
+        "argv",
+        ["check_main_extraction.py", "--require-branch", "main", "--staged-files", "README.md"],
+    )
+    monkeypatch.setattr(check_main_extraction, "_git_current_branch", lambda: "dev")
+
+    assert check_main_extraction.main() == 1
+    assert "WRONG BRANCH" in capsys.readouterr().err
+
+
+def test_main_accepts_required_branch(monkeypatch, capsys):
+    monkeypatch.setattr(
+        check_main_extraction.sys,
+        "argv",
+        ["check_main_extraction.py", "--require-branch", "main", "--staged-files", "README.md"],
+    )
+    monkeypatch.setattr(check_main_extraction, "_git_current_branch", lambda: "main")
+
+    assert check_main_extraction.main() == 0
+    assert "no denylist violations" in capsys.readouterr().out

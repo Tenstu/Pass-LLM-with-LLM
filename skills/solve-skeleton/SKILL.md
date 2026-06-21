@@ -124,7 +124,9 @@ If the problem has multiple test cases or unusual input format, pick an I/O mode
 3. **Copy skeleton** — paste the template into the Algorithm phase. Keep all stage separators.
 4. **Fill TODOs** — write only the missing logic. Do not add comments (algo-annotation does that later).
 5. **Validate** — run the anti-pattern checklist. Confirm input/output matches the problem statement.
-6. **Hand off** — once solve() is complete, invoke the `algo-annotation` skill for Chinese comments.
+6. **Run tests** — execute every provided sample plus at least one small boundary case. Report the exact command/input and output before claiming the solution is ready.
+7. **Record** — update today's `shared/daily/YYYY-MM-DD.md` problem log when writable; if not writable, return a `[DAILY_PROBLEM_LOG_APPEND]` block.
+8. **Hand off** — once solve() is tested, invoke the `algo-annotation` skill for Chinese comments.
 
 ## 5. Cross-References
 

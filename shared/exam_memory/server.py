@@ -9,6 +9,8 @@ import glob
 import json
 import os
 import re
+import tempfile
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,6 +40,7 @@ SOURCES_YAML_PATH = BASE_DIR / "sources.yaml"
 # ── Store 实例缓存（避免每次 MCP tool call 重建）────────────────
 _fts_cache: "FTSStore | None" = None
 _vec_cache: "NumpyVectorStore | None" = None
+_profile_lock = threading.Lock()
 
 
 def _get_fts():
@@ -269,9 +272,26 @@ def _load_all_experiences(type_filter: str) -> list[tuple[int, str]]:
 
 def _save_profile(profile: dict):
     profile["last_updated"] = datetime.now(timezone.utc).isoformat()
-    PROFILE_PATH.write_text(
-        json.dumps(profile, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    PROFILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    data = json.dumps(profile, ensure_ascii=False, indent=2)
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=PROFILE_PATH.parent,
+            prefix=f".{PROFILE_PATH.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as tmp:
+            tmp_path = Path(tmp.name)
+            tmp.write(data)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(tmp_path, PROFILE_PATH)
+    finally:
+        if tmp_path is not None and tmp_path.exists():
+            tmp_path.unlink()
 
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
@@ -498,12 +518,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         invalid_keys = set(diff.keys()) - _ALLOWED_PROFILE_KEYS
         if invalid_keys:
             return [TextContent(type="text", text=f"不允许的 profile 字段: {invalid_keys}")]
-        if PROFILE_PATH.exists():
-            profile = json.loads(PROFILE_PATH.read_text(encoding="utf-8"))
-        else:
-            profile = {}
-        profile = _deep_merge(profile, diff)
-        _save_profile(profile)
+        with _profile_lock:
+            if PROFILE_PATH.exists():
+                profile = json.loads(PROFILE_PATH.read_text(encoding="utf-8"))
+            else:
+                profile = {}
+            profile = _deep_merge(profile, diff)
+            _save_profile(profile)
         return [TextContent(type="text", text="画像已更新。")]
 
     # ── mount_source ──

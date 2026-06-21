@@ -39,6 +39,7 @@ full = [
 [project.scripts]
 exam-memory = "exam_memory.server:cli_main"
 review-schedule = "exam_memory.review_cli:main"
+distill-export = "exam_memory.distill_export:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]

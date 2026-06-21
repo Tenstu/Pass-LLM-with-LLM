@@ -450,7 +450,7 @@ C
         monkeypatch.setattr(
             bank,
             "_call_llm",
-            lambda s, u: LlmCallResult.success(mock_raw),
+            lambda s, u, **kw: LlmCallResult.success(mock_raw),
         )
         monkeypatch.setattr(bank, "_retrieve", lambda *args, **kwargs: [])
         return bank
@@ -482,7 +482,7 @@ C
         monkeypatch.setattr(
             bank,
             "_call_llm",
-            lambda s, u: LlmCallResult.failure("LLM 不可用：litellm 未安装"),
+            lambda s, u, **kw: LlmCallResult.failure("LLM 不可用：litellm 未安装"),
         )
         monkeypatch.setattr(bank, "_retrieve", lambda *args, **kwargs: [])
         result = bank.generate(topic="x", count=1)
@@ -494,7 +494,7 @@ C
         monkeypatch.setattr(
             bank,
             "_call_llm",
-            lambda s, u: LlmCallResult.success("not a valid question format"),
+            lambda s, u, **kw: LlmCallResult.success("not a valid question format"),
         )
         monkeypatch.setattr(bank, "_retrieve", lambda *args, **kwargs: [])
         result = bank.generate(topic="x", count=1)
@@ -505,7 +505,7 @@ C
     def test_generate_rejects_invalid_options_count(self, tmp_path, monkeypatch):
         bank = QuestionBank(bank_dir=tmp_path)
         raw = "## 题\n题干\n### 选项\n**A.** x\n**B.** y\n### 答案\nA\n### 解析\np\n"
-        monkeypatch.setattr(bank, "_call_llm", lambda s, u: LlmCallResult.success(raw))
+        monkeypatch.setattr(bank, "_call_llm", lambda s, u, **kw: LlmCallResult.success(raw))
         monkeypatch.setattr(bank, "_retrieve", lambda *args, **kwargs: [])
         result = bank.generate(topic="x", count=1)
         assert len(result["rejected"]) >= 1
@@ -599,7 +599,7 @@ class TestLLMConfig:
         monkeypatch.setattr(
             bank,
             "_call_llm",
-            lambda s, u: LlmCallResult.failure("LLM 调用失败：boom"),
+            lambda s, u, **kw: LlmCallResult.failure("LLM 调用失败：boom"),
         )
         monkeypatch.setattr(bank, "_retrieve", lambda *args, **kwargs: [])
 
@@ -644,7 +644,7 @@ C
 
     def test_rag_extract_saves(self, tmp_path, monkeypatch):
         bank = QuestionBank(bank_dir=tmp_path)
-        monkeypatch.setattr(bank, "_call_llm", lambda s, u: self._mock_success())
+        monkeypatch.setattr(bank, "_call_llm", lambda s, u, **kw: self._mock_success())
         monkeypatch.setattr(bank, "_retrieve", lambda *args, **kwargs: [])
         result = bank.rag_extract(topic="哈希表", count=1, q_type="算法")
         assert result["error"] is None
@@ -652,7 +652,7 @@ C
 
     def test_text_extract_saves(self, tmp_path, monkeypatch):
         bank = QuestionBank(bank_dir=tmp_path)
-        monkeypatch.setattr(bank, "_call_llm", lambda s, u: self._mock_success())
+        monkeypatch.setattr(bank, "_call_llm", lambda s, u, **kw: self._mock_success())
         result = bank.text_extract(
             source_text="哈希表是 O(1) 查找的数据结构。",
             topic="哈希表", count=1, q_type="算法",
@@ -665,7 +665,7 @@ C
         bank = QuestionBank(bank_dir=tmp_path)
         captured = {}
 
-        def mock_llm(system, user):
+        def mock_llm(system, user, **_kw):
             captured["user"] = user
             return self._mock_success()
 
@@ -677,7 +677,7 @@ C
 
     def test_direct_extract_saves(self, tmp_path, monkeypatch):
         bank = QuestionBank(bank_dir=tmp_path)
-        monkeypatch.setattr(bank, "_call_llm", lambda s, u: self._mock_success())
+        monkeypatch.setattr(bank, "_call_llm", lambda s, u, **kw: self._mock_success())
         result = bank.direct_extract(topic="BFS", count=1, q_type="算法")
         assert result["error"] is None
         assert len(result["saved"]) == 1
@@ -687,7 +687,7 @@ C
         bank = QuestionBank(bank_dir=tmp_path)
         captured = {}
 
-        def mock_llm(system, user):
+        def mock_llm(system, user, **_kw):
             captured["user"] = user
             return self._mock_success()
 
@@ -698,7 +698,7 @@ C
     def test_generate_equals_rag_extract(self, tmp_path, monkeypatch):
         """generate() 向后兼容，等价于 rag_extract()。两者共享管道。"""
         bank = QuestionBank(bank_dir=tmp_path)
-        monkeypatch.setattr(bank, "_call_llm", lambda s, u: self._mock_success())
+        monkeypatch.setattr(bank, "_call_llm", lambda s, u, **kw: self._mock_success())
         monkeypatch.setattr(bank, "_retrieve", lambda *args, **kwargs: [])
         r1 = bank.generate(topic="哈希表", count=1)
         assert r1["error"] is None
@@ -714,7 +714,7 @@ C
         monkeypatch.setattr(
             bank,
             "_call_llm",
-            lambda s, u: LlmCallResult.failure("LLM 不可用：litellm 未安装"),
+            lambda s, u, **kw: LlmCallResult.failure("LLM 不可用：litellm 未安装"),
         )
         result = bank.text_extract(source_text="x", topic="x", count=1)
         assert result["error"] is not None
@@ -724,7 +724,7 @@ C
         monkeypatch.setattr(
             bank,
             "_call_llm",
-            lambda s, u: LlmCallResult.failure("LLM 不可用：litellm 未安装"),
+            lambda s, u, **kw: LlmCallResult.failure("LLM 不可用：litellm 未安装"),
         )
         result = bank.direct_extract(topic="x", count=1)
         assert result["error"] is not None
@@ -981,6 +981,41 @@ class TestImportFromDir:
         with pytest.raises(ValueError, match="目录不存在"):
             bank.import_from_dir(str(tmp_path / "nope"))
 
+    def test_import_rejects_path_inside_cwd_but_outside_bank_dir(self, tmp_path, monkeypatch):
+        bank_dir = tmp_path / "bank"
+        bank = QuestionBank(bank_dir=bank_dir)
+        src = tmp_path / "external"
+        src.mkdir()
+        (src / "a.md").write_text(
+            "---\ntype: 算法\nknowledge: 二分查找\n---\n\n## Q\n\nC\n",
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(ValueError, match="超出题库目录"):
+            bank.import_from_dir(str(src))
+
+        assert bank.count() == 0
+        assert list(bank_dir.glob("*.md")) == []
+
+    def test_import_allows_bank_local_path_when_cwd_differs(self, tmp_path, monkeypatch):
+        bank_dir = tmp_path / "bank"
+        src = bank_dir / "incoming"
+        src.mkdir(parents=True)
+        (src / "a.md").write_text(
+            "---\ntype: 算法\nknowledge: 二分查找\n---\n\n## Q\n\nC\n",
+            encoding="utf-8",
+        )
+        cwd = tmp_path / "cwd"
+        cwd.mkdir()
+        monkeypatch.chdir(cwd)
+        bank = QuestionBank(bank_dir=bank_dir)
+
+        n = bank.import_from_dir(str(src))
+
+        assert n == 1
+        assert bank.count(q_type="算法") == 1
+
 
 # ── add() dict 快捷方式 ────────────────────────────────────────
 
@@ -997,3 +1032,106 @@ class TestAddDict:
         })
         assert fn.startswith("算法_动态规划_")
         assert tmp_bank.count() == 1
+
+
+# ── Logprobs 采集 ──────────────────────────────────────────────
+
+class TestLogprobsCapture:
+    MOCK_LOGPROBS = [
+        {"token": "\n", "logprob": -0.1, "bytes": [10]},
+        {"token": "##", "logprob": -0.05, "bytes": [35, 35]},
+        {"token": " 哈希", "logprob": -0.8, "bytes": None},
+    ]
+
+    def _make_logprobs_resp(self, content: str = "question output", logprobs_content=None):
+        """构造含 logprobs 的 mock litellm 响应。"""
+        from types import SimpleNamespace
+        lp_obj = None
+        if logprobs_content is not None:
+            lp_content = []
+            for entry in logprobs_content:
+                item = SimpleNamespace(
+                    token=entry.get("token", ""),
+                    logprob=entry.get("logprob"),
+                    bytes=entry.get("bytes"),
+                    top_logprobs=None,
+                )
+                lp_content.append(item)
+            lp_obj = SimpleNamespace(content=lp_content)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(
+                message=SimpleNamespace(content=content),
+                logprobs=lp_obj,
+            )],
+        )
+
+    def test_capture_false_no_logprobs(self, tmp_path, monkeypatch):
+        """默认路径：capture_logprobs=False，LlmCallResult.logprobs 为 None。"""
+        import types as _types
+        from exam_memory.question_bank import LlmCallResult, QuestionBank
+        bank = QuestionBank(bank_dir=tmp_path)
+        monkeypatch.setenv("EXAM_MEMORY_LLM_MODEL", "deepseek/deepseek-chat")
+        resp = self._make_logprobs_resp(content="raw output")
+        fake_litellm = _types.SimpleNamespace(completion=lambda **kw: resp)
+        monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+        result = bank._call_llm("s", "u", capture_logprobs=False)
+        assert result.ok
+        assert result.logprobs is None
+        assert result.content == "raw output"
+
+    def test_capture_true_extracts_logprobs(self, tmp_path, monkeypatch):
+        """capture_logprobs=True 时从响应提取 logprobs。"""
+        import types as _types
+        from exam_memory.question_bank import LlmCallResult, QuestionBank
+        bank = QuestionBank(bank_dir=tmp_path)
+        monkeypatch.setenv("EXAM_MEMORY_LLM_MODEL", "deepseek/deepseek-chat")
+        resp = self._make_logprobs_resp(
+            content="raw output", logprobs_content=self.MOCK_LOGPROBS,
+        )
+        fake_litellm = _types.SimpleNamespace(completion=lambda **kw: resp)
+        monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+        result = bank._call_llm("s", "u", capture_logprobs=True)
+        assert result.ok
+        assert result.logprobs is not None
+        assert len(result.logprobs) == 3
+        assert result.logprobs[0]["token"] == "\n"
+        assert result.logprobs[0]["logprob"] == -0.1
+        assert isinstance(result, LlmCallResult)
+
+    def test_provider_unsupported_graceful_fallback(self, tmp_path, monkeypatch):
+        """provider 返回无 logprobs 的响应时降级为纯文本，不中断。"""
+        import types as _types
+        from exam_memory.question_bank import LlmCallResult, QuestionBank
+        bank = QuestionBank(bank_dir=tmp_path)
+        monkeypatch.setenv("EXAM_MEMORY_LLM_MODEL", "deepseek/deepseek-chat")
+        resp = self._make_logprobs_resp(content="raw output", logprobs_content=None)
+        fake_litellm = _types.SimpleNamespace(completion=lambda **kw: resp)
+        monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+        result = bank._call_llm("s", "u", capture_logprobs=True)
+        assert result.ok
+        assert result.content == "raw output"
+        assert result.logprobs is None
+
+    def test_distill_jsonl_written(self, tmp_path, monkeypatch):
+        """add_manual(logprobs_data=...) 写入同名 .distill.jsonl。"""
+        from exam_memory.question_bank import QuestionBank
+        import json
+        bank = QuestionBank(bank_dir=tmp_path)
+        logprobs_data = [{"token": "A", "logprob": -0.5, "bytes": [65]}]
+        fn = bank.add_manual(
+            title="Test", content="题干", q_type="算法",
+            knowledge="K", answer="A",
+            options={"A": "opt1", "B": "opt2", "C": "opt3", "D": "opt4"},
+            logprobs_data=logprobs_data,
+        )
+        sidecar = tmp_path / fn.replace(".md", ".distill.jsonl")
+        assert sidecar.exists()
+        line = sidecar.read_text(encoding="utf-8").strip()
+        record = json.loads(line)
+        assert record["answer"] == "A"
+        assert record["logprobs"] == logprobs_data
+        assert "question_id" in record
+        assert "captured_at" in record

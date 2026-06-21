@@ -115,20 +115,20 @@ Read the user's code and match it to the template table in
 
 | User code contains... | Pattern | Skeleton source |
 |---|---|---|
-| BFS with deque, grid, distance array | BFS | `references/algo-skeletons.md` section 3a |
-| DFS with visited set, recursion stack | DFS | `references/algo-skeletons.md` section 3b |
-| parent[] array, union/find operations | DSU | `references/algo-skeletons.md` section 3c |
-| heapq, heappush/heappop | Heap | `references/algo-skeletons.md` section 3d |
-| weighted edges, dist[], priority queue | Dijkstra | `references/algo-skeletons.md` section 3e |
-| prefix sum array, range query | Prefix Sum | `references/algo-skeletons.md` section 3f |
-| two pointers (left/right), window | Sliding Window | `references/algo-skeletons.md` section 3g |
-| lo/hi/mid, monotonic condition | Binary Search | `references/algo-skeletons.md` section 3h |
-| state transitions, simulation loop | State Machine | `references/exam-patterns.md` section 4a |
-| Counter, frequency dict | Counter | `references/exam-patterns.md` section 4b |
-| GCD, adjacent merge | GCD Merge | `references/exam-patterns.md` section 4c |
-| string replace at index | String Modify | `references/exam-patterns.md` section 4d |
-| stack, bracket matching | Bracket Match | `references/exam-patterns.md` section 4e |
-| modular arithmetic, formula | Math Derivation | `references/exam-patterns.md` section 4f |
+| BFS with deque, grid, distance array | BFS | `skills/solve-skeleton/references/algo-skeletons.md` section 3a |
+| DFS with visited set, recursion stack | DFS | `skills/solve-skeleton/references/algo-skeletons.md` section 3b |
+| parent[] array, union/find operations | DSU | `skills/solve-skeleton/references/algo-skeletons.md` section 3c |
+| heapq, heappush/heappop | Heap | `skills/solve-skeleton/references/algo-skeletons.md` section 3d |
+| weighted edges, dist[], priority queue | Dijkstra | `skills/solve-skeleton/references/algo-skeletons.md` section 3e |
+| prefix sum array, range query | Prefix Sum | `skills/solve-skeleton/references/algo-skeletons.md` section 3f |
+| two pointers (left/right), window | Sliding Window | `skills/solve-skeleton/references/algo-skeletons.md` section 3g |
+| lo/hi/mid, monotonic condition | Binary Search | `skills/solve-skeleton/references/algo-skeletons.md` section 3h |
+| state transitions, simulation loop | State Machine | `skills/solve-skeleton/references/exam-patterns.md` section 4a |
+| Counter, frequency dict | Counter | `skills/solve-skeleton/references/exam-patterns.md` section 4b |
+| GCD, adjacent merge | GCD Merge | `skills/solve-skeleton/references/exam-patterns.md` section 4c |
+| string replace at index | String Modify | `skills/solve-skeleton/references/exam-patterns.md` section 4d |
+| stack, bracket matching | Bracket Match | `skills/solve-skeleton/references/exam-patterns.md` section 4e |
+| modular arithmetic, formula | Math Derivation | `skills/solve-skeleton/references/exam-patterns.md` section 4f |
 | None of the above | Fallback | 5-phase structure, raw loops |
 
 If the user's code does not cleanly match a single pattern, note the closest match

@@ -15,7 +15,10 @@
 from __future__ import annotations
 
 import glob
+import hashlib
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -71,15 +74,49 @@ def _build_manifest(embs: np.ndarray, meta: list[dict]) -> dict:
     }
 
 
+def _write_text_sync(path: Path, text: str) -> None:
+    with path.open("w", encoding="utf-8") as f:
+        f.write(text)
+        f.flush()
+        os.fsync(f.fileno())
+
+
+def _fsync_path(path: Path) -> None:
+    with path.open("r+b") as f:
+        os.fsync(f.fileno())
+
+
+def _temp_path_for(path: Path) -> Path:
+    suffix = ".tmp.npy" if path.suffix == ".npy" else ".tmp"
+    tmp = tempfile.NamedTemporaryFile(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=suffix,
+        delete=False,
+    )
+    tmp_path = Path(tmp.name)
+    tmp.close()
+    return tmp_path
+
+
+def _file_sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def _write_manifest(manifest: dict) -> None:
     """原子写入 manifest.json。"""
     VECTOR_DIR.mkdir(parents=True, exist_ok=True)
-    tmp = MANIFEST_PATH.with_suffix(".tmp")
-    tmp.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    tmp.replace(MANIFEST_PATH)
+    tmp = _temp_path_for(MANIFEST_PATH)
+    try:
+        _write_text_sync(tmp, json.dumps(manifest, ensure_ascii=False, indent=2))
+        os.replace(tmp, MANIFEST_PATH)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
 
 
 def _read_manifest() -> dict | None:
@@ -119,6 +156,37 @@ def _validate_manifest(manifest: dict, embs: np.ndarray) -> bool:
         return False
     if manifest.get("pooling", "cls") != "cls":
         return False
+    return True
+
+
+def _validate_snapshot(manifest: dict, embs: np.ndarray, meta: Any) -> bool:
+    """校验 manifest、向量矩阵和 metadata 是否属于同一个完整快照。"""
+    if not isinstance(meta, list):
+        return False
+    if not isinstance(embs, np.ndarray) or embs.ndim != 2:
+        return False
+    if len(meta) != int(embs.shape[0]):
+        return False
+
+    source_count = manifest.get("source_count", manifest.get("entry_count"))
+    if source_count is not None:
+        try:
+            if int(source_count) != len(meta):
+                return False
+        except (TypeError, ValueError):
+            return False
+
+    if not _validate_manifest(manifest, embs):
+        return False
+
+    expected_emb_hash = manifest.get("embeddings_sha256")
+    if expected_emb_hash and _file_sha256(EMB_PATH) != expected_emb_hash:
+        return False
+
+    expected_meta_hash = manifest.get("metadata_sha256")
+    if expected_meta_hash and _file_sha256(META_PATH) != expected_meta_hash:
+        return False
+
     return True
 
 
@@ -184,26 +252,49 @@ class NumpyVectorStore:
     def save(self) -> None:
         if self._embs is not None and self._meta:
             VECTOR_DIR.mkdir(parents=True, exist_ok=True)
-            np.save(str(EMB_PATH), self._embs)
-            META_PATH.write_text(
-                json.dumps(self._meta, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-            _write_manifest(_build_manifest(self._embs, self._meta))
+            tmp_paths: list[Path] = []
+            tmp_emb = _temp_path_for(EMB_PATH)
+            tmp_meta = _temp_path_for(META_PATH)
+            tmp_manifest = _temp_path_for(MANIFEST_PATH)
+            tmp_paths.extend([tmp_emb, tmp_meta, tmp_manifest])
+            try:
+                np.save(str(tmp_emb), self._embs)
+                _fsync_path(tmp_emb)
+
+                _write_text_sync(
+                    tmp_meta,
+                    json.dumps(self._meta, ensure_ascii=False, indent=2),
+                )
+
+                manifest = _build_manifest(self._embs, self._meta)
+                manifest["embeddings_sha256"] = _file_sha256(tmp_emb)
+                manifest["metadata_sha256"] = _file_sha256(tmp_meta)
+                _write_text_sync(
+                    tmp_manifest,
+                    json.dumps(manifest, ensure_ascii=False, indent=2),
+                )
+
+                os.replace(tmp_emb, EMB_PATH)
+                os.replace(tmp_meta, META_PATH)
+                os.replace(tmp_manifest, MANIFEST_PATH)
+            finally:
+                for tmp_path in tmp_paths:
+                    if tmp_path.exists():
+                        tmp_path.unlink()
 
     def load(self) -> bool:
         if not EMB_PATH.exists() or not META_PATH.exists():
             return False
         try:
-            self._embs = np.load(str(EMB_PATH))
-            self._meta = json.loads(META_PATH.read_text(encoding="utf-8"))
+            embs = np.load(str(EMB_PATH))
+            meta = json.loads(META_PATH.read_text(encoding="utf-8"))
         except Exception:
             return False
         manifest = _read_manifest()
-        if manifest is None or not _validate_manifest(manifest, self._embs):
-            self._embs = None
-            self._meta = []
+        if manifest is None or not _validate_snapshot(manifest, embs, meta):
             return False
+        self._embs = embs
+        self._meta = meta
         return True
 
     def clear(self) -> None:

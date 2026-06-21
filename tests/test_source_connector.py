@@ -38,14 +38,14 @@ C
 @pytest.fixture
 def connector(tmp_path, monkeypatch):
     bank = QuestionBank(bank_dir=tmp_path)
-    monkeypatch.setattr(bank, "_call_llm", lambda s, u: LlmCallResult.success(MOCK_RAW))
+    monkeypatch.setattr(bank, "_call_llm", lambda s, u, **kw: LlmCallResult.success(MOCK_RAW))
     return SourceConnector(bank)
 
 
 @pytest.fixture
 def connector_no_llm(tmp_path, monkeypatch):
     bank = QuestionBank(bank_dir=tmp_path)
-    monkeypatch.setattr(bank, "_call_llm", lambda s, u: LlmCallResult.failure("LLM 不可用"))
+    monkeypatch.setattr(bank, "_call_llm", lambda s, u, **kw: LlmCallResult.failure("LLM 不可用"))
     return SourceConnector(bank)
 
 
@@ -206,7 +206,7 @@ class TestFromSource:
         reg.mount(ds)
 
         bank = QuestionBank(bank_dir=tmp_path)
-        monkeypatch.setattr(bank, "_call_llm", lambda s, u: LlmCallResult.success(MOCK_RAW))
+        monkeypatch.setattr(bank, "_call_llm", lambda s, u, **kw: LlmCallResult.success(MOCK_RAW))
         conn = SourceConnector(bank, registry=reg)
 
         result = conn.from_source("test", "哈希表")
@@ -216,7 +216,7 @@ class TestFromSource:
     def test_from_source_no_registry_returns_error(self, tmp_path, monkeypatch):
         """from_source() 无 registry 时返回错误。"""
         bank = QuestionBank(bank_dir=tmp_path)
-        monkeypatch.setattr(bank, "_call_llm", lambda s, u: LlmCallResult.success(MOCK_RAW))
+        monkeypatch.setattr(bank, "_call_llm", lambda s, u, **kw: LlmCallResult.success(MOCK_RAW))
         conn = SourceConnector(bank)  # 无 registry
 
         result = conn.from_source("test", "topic")
@@ -227,7 +227,7 @@ class TestFromSource:
         """from_source() 不存在的源返回错误。"""
         reg = SourceRegistry()
         bank = QuestionBank(bank_dir=tmp_path)
-        monkeypatch.setattr(bank, "_call_llm", lambda s, u: LlmCallResult.success(MOCK_RAW))
+        monkeypatch.setattr(bank, "_call_llm", lambda s, u, **kw: LlmCallResult.success(MOCK_RAW))
         conn = SourceConnector(bank, registry=reg)
 
         result = conn.from_source("nope", "topic")

@@ -27,6 +27,7 @@ transformer-review.md
 # 考试经验沉淀系统 - 运行时个人数据（代码和配置应被跟踪）
 shared/exam_memory/experiences/
 shared/exam_memory/bank/*.md
+shared/exam_memory/bank/*.json
 !shared/exam_memory/bank/README.md
 shared/exam_memory/user_profile.json
 shared/exam_memory/vectorstore/
@@ -82,7 +83,7 @@ targets/*/mock_exam_log.md
 .mempalace/
 
 # 个人分支私有文件（dev-only，不允许合并到 main）
-skills/branch-ops.md
+skills/branch-ops/
 skills/harness-dev-flow/
 skills/dev-review-flow/
 docs/

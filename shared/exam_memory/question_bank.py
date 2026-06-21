@@ -18,15 +18,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import glob
+import json
 import logging
 import os
 import re
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import yaml
 
+from exam_memory.difficulty_calibrator import DifficultyCalibrator
 from exam_memory.frontmatter import parse_frontmatter as _parse_frontmatter
 from exam_memory.frontmatter import body_text as _body
 
@@ -87,6 +91,61 @@ def _build_filename(q_type: str, knowledge: str, bank_dir: Path = BANK_DIR, seq:
     return f"{prefix}_{safe_knowledge}_{seq:03d}_{short_id}.md"
 
 
+# ── Logprobs 提取 / 序列化 ─────────────────────────────────────
+
+def _extract_logprobs(resp: Any) -> list[dict[str, Any]] | None:
+    """从 litellm 响应提取 token 级 logprobs。
+
+    返回可 JSON 序列化的 list[dict]，每项含 token/logprob/bytes/top_logprobs。
+    任何异常降级为 None 并打 warning。
+    """
+    try:
+        choices = getattr(resp, "choices", None)
+        if not choices:
+            return None
+        raw = getattr(choices[0], "logprobs", None)
+        if raw is None:
+            return None
+        content = getattr(raw, "content", None)
+        if content is None:
+            return None
+        result: list[dict[str, Any]] = []
+        for entry in content:
+            token_info: dict[str, Any] = {"token": getattr(entry, "token", "")}
+            lp = getattr(entry, "logprob", None)
+            if lp is not None:
+                token_info["logprob"] = lp
+            raw_bytes = getattr(entry, "bytes", None)
+            if raw_bytes is not None:
+                token_info["bytes"] = raw_bytes
+            tl = getattr(entry, "top_logprobs", None)
+            if tl is not None:
+                token_info["top_logprobs"] = [
+                    {"token": getattr(t, "token", ""), "logprob": getattr(t, "logprob", None)}
+                    for t in tl
+                ]
+            result.append(token_info)
+        return result
+    except Exception as exc:
+        logger.warning("logprobs 提取失败（降级为 None）：%s", exc)
+        return None
+
+
+def _logprobs_to_json(data: list[dict[str, Any]] | None) -> str | None:
+    if data is None:
+        return None
+    return json.dumps(data, ensure_ascii=False)
+
+
+def _logprobs_from_json(s: str | None) -> list[dict[str, Any]] | None:
+    if not s:
+        return None
+    try:
+        return json.loads(s)
+    except Exception:
+        return None
+
+
 # ── LLM 生成管道 ──────────────────────────────────────────────
 
 @dataclass(frozen=True)
@@ -96,10 +155,18 @@ class LlmCallResult:
     ok: bool
     content: str = ""
     error: str | None = None
+    logprobs: list[dict[str, Any]] | None = None
+    model: str | None = None
 
     @classmethod
     def success(cls, content: str) -> "LlmCallResult":
         return cls(ok=True, content=content)
+
+    @classmethod
+    def success_with_logprobs(
+        cls, content: str, logprobs: list[dict[str, Any]], model: str | None = None,
+    ) -> "LlmCallResult":
+        return cls(ok=True, content=content, logprobs=logprobs, model=model)
 
     @classmethod
     def failure(cls, error: str) -> "LlmCallResult":
@@ -407,15 +474,22 @@ class QuestionBank:
         self._parser = QuestionParser()
         self._validator = QualityValidator()
         self._stem_prefix_len = 50  # 去重：题干前 N 字符比对
+        self._calibrator = DifficultyCalibrator(BANK_DIR / "difficulty_stats.json")
+
+        # 语义去重索引（惰性初始化）
+        self._semantic_available: bool = False
+        self._semantic_index: np.ndarray | None = None  # (N, dim) L2 归一化矩阵
+        self._semantic_ids: list[str] = []              # 与矩阵行一一对应的 question_id
 
     # ── 去重 ──────────────────────────────────────────────────
 
-    def check_duplicate(self, stem: str, question_id: str = "") -> list[str]:
+    def check_duplicate(self, stem: str, question_id: str = "", use_semantic: bool = False) -> list[str]:
         """检查是否存在重复题目。返回重复原因列表（空 = 无重复）。
 
         规则：
         - stem 前缀比对（前 50 字符标准化后完全匹配）
         - question_id 唯一性（如果传入）
+        - use_semantic=True 时额外做向量余弦相似度去重（阈值 0.92）
         """
         reasons: list[str] = []
         norm_stem = self._normalize_stem(stem)
@@ -448,6 +522,12 @@ class QuestionBank:
                     f"题干前缀重复：'{norm_stem[:30]}...' 与 {item.get('question_id', '?')} 相同"
                 )
 
+        # 语义相似度去重（opt-in）：与 stem 前缀结果合并
+        if use_semantic:
+            semantic_hits = self.check_semantic_duplicate(stem)
+            for qid in semantic_hits:
+                reasons.append(f"语义相似：'{stem[:30]}...' 与 {qid} 相似度 >= 0.92")
+
         return reasons
 
     def _normalize_stem(self, stem: str) -> str:
@@ -455,6 +535,145 @@ class QuestionBank:
         s = re.sub(r'\s+', '', stem)
         s = re.sub(r'[，。？！、；：""''【】《》（）]', '', s)
         return s[:self._stem_prefix_len]
+
+    # ── 语义去重 ────────────────────────────────────────────────
+
+    def _ensure_semantic_ready(self) -> bool:
+        """确保 embedding 可用。返回是否可用。"""
+        if self._semantic_available:
+            return True
+        try:
+            from exam_memory.embedding import is_available as _is_avail
+            if _is_avail():
+                self._semantic_available = True
+                return True
+        except Exception:
+            pass
+        self._semantic_available = False
+        return False
+
+    def _rebuild_semantic_index(self) -> None:
+        """重建语义索引：扫描 bank/ 目录，对所有 .md 文件编码后构建矩阵。"""
+        try:
+            from exam_memory.embedding import encode_safe
+        except ImportError:
+            self._semantic_available = False
+            return
+
+        vectors: list[np.ndarray] = []
+        ids: list[str] = []
+        for fp in sorted(self.bank_dir.glob("*.md")):
+            item = self._load_file(fp)
+            if item is None:
+                continue
+            qid = item.get("question_id", fp.stem)
+            body_text = item.get("body", "")
+            vec = encode_safe(body_text)
+            if vec is None:
+                logger.debug("语义索引跳过（编码失败）：%s", fp.name)
+                continue
+            norm = float(np.linalg.norm(vec))
+            if norm > 0:
+                vec = vec / norm
+            vectors.append(vec.astype(np.float32))
+            ids.append(qid)
+
+        if vectors:
+            self._semantic_index = np.stack(vectors)
+            self._semantic_ids = ids
+        else:
+            self._semantic_index = np.empty((0, 0), dtype=np.float32)
+            self._semantic_ids = []
+        self._semantic_available = True
+        logger.debug("语义索引已重建：%d 条", len(ids))
+
+    def _update_semantic_index(self, question_id: str, body_text: str) -> None:
+        """增量更新：将新题目的向量追加到索引。"""
+        if not self._semantic_available:
+            return
+        try:
+            from exam_memory.embedding import encode_safe
+        except ImportError:
+            return
+
+        vec = encode_safe(body_text)
+        if vec is None:
+            return
+        norm = float(np.linalg.norm(vec))
+        if norm > 0:
+            vec = vec / norm
+        vec = vec.astype(np.float32)
+
+        if self._semantic_index is None or self._semantic_index.size == 0:
+            self._semantic_index = vec.reshape(1, -1)
+        else:
+            if vec.shape[0] != self._semantic_index.shape[1]:
+                logger.warning(
+                    "语义索引维度不匹配（期望 %d，实际 %d），重建索引",
+                    self._semantic_index.shape[1], vec.shape[0],
+                )
+                self._rebuild_semantic_index()
+                return
+            self._semantic_index = np.vstack([self._semantic_index, vec.reshape(1, -1)])
+        self._semantic_ids.append(question_id)
+
+    def check_semantic_duplicate(
+        self, stem: str, threshold: float = 0.92,
+    ) -> list[str]:
+        """基于向量余弦相似度的语义去重检查。
+
+        Args:
+            stem: 待检查的题干文本。
+            threshold: 相似度阈值（0~1），默认 0.92。
+
+        Returns:
+            重复的 question_id 列表（相似度 >= threshold）。
+        """
+        if not self._ensure_semantic_ready():
+            return []
+
+        # 惰性构建索引
+        if self._semantic_index is None or self._semantic_index.size == 0:
+            self._rebuild_semantic_index()
+
+        if self._semantic_index is None or self._semantic_index.size == 0:
+            return []
+
+        try:
+            from exam_memory.embedding import encode_safe
+        except ImportError:
+            return []
+
+        q_vec = encode_safe(stem)
+        if q_vec is None:
+            return []
+
+        # 确保 L2 归一化
+        norm = float(np.linalg.norm(q_vec))
+        if norm > 0:
+            q_vec = q_vec / norm
+        q_vec = q_vec.astype(np.float32)
+
+        # 维度对齐
+        if q_vec.shape[0] != self._semantic_index.shape[1]:
+            logger.warning(
+                "语义去重维度不匹配（期望 %d，实际 %d），重建索引",
+                self._semantic_index.shape[1], q_vec.shape[0],
+            )
+            self._rebuild_semantic_index()
+            if self._semantic_index is None or self._semantic_index.size == 0:
+                return []
+            if q_vec.shape[0] != self._semantic_index.shape[1]:
+                return []
+
+        # 余弦相似度 = L2 归一化后的点积
+        scores = (self._semantic_index @ q_vec.reshape(-1, 1)).flatten()
+
+        hits: list[str] = []
+        for i, score in enumerate(scores):
+            if score >= threshold and i < len(self._semantic_ids):
+                hits.append(self._semantic_ids[i])
+        return hits
 
     # ── CRUD ────────────────────────────────────────────────
 
@@ -474,19 +693,35 @@ class QuestionBank:
         reviewed: bool = False,
         generated: bool = False,
         check_dup: bool = False,
+        calibrate_difficulty: bool = False,
+        logprobs_data: list[dict[str, Any]] | None = None,
     ) -> str:
         """人工录入一道题。返回写入的文件名。
 
         check_dup: True 时检查 stem 前缀重复（默认 False，保持向后兼容）。
+        calibrate_difficulty: True 时根据答题历史校准难度标记（默认 False）。
+        logprobs_data: 蒸馏侧信道数据；如有则写入同名 .distill.jsonl。
         """
         if q_type not in TYPE_PREFIX:
             raise ValueError(f"不支持的题型：{q_type}（支持：{list(TYPE_PREFIX)}）")
         if difficulty not in DIFFICULTY_OPTIONS:
             raise ValueError(f"不支持的难度：{difficulty}（支持：{DIFFICULTY_OPTIONS}）")
 
+        # 难度校准（opt-in）
+        original_difficulty = difficulty
+        if calibrate_difficulty:
+            calibrated = self._calibrator.calibrate(knowledge, difficulty)
+            if calibrated != difficulty:
+                difficulty = calibrated
+
         # 去重检查（opt-in）
         if check_dup:
             dup_reasons = self.check_duplicate(content)
+            # 语义去重补充（仅当精确去重未命中时）
+            if not dup_reasons and self._semantic_available:
+                semantic_hits = self.check_semantic_duplicate(content)
+                if semantic_hits:
+                    dup_reasons = [f"语义重复：{'; '.join(semantic_hits)}"]
             if dup_reasons:
                 raise ValueError(f"题目重复：{'; '.join(dup_reasons)}")
 
@@ -505,6 +740,8 @@ class QuestionBank:
             "tags": tags or [],
             "created": today,
         }
+        if calibrate_difficulty and difficulty != original_difficulty:
+            fm["difficulty_suggested"] = original_difficulty
         if source_url:
             fm["source_url"] = source_url
 
@@ -523,10 +760,34 @@ class QuestionBank:
 
         doc = self._render(fm, body)
         filepath.write_text(doc, encoding="utf-8")
+
+        # 增量更新语义索引（仅在已就绪时，不触发惰性初始化）
+        if self._semantic_available and self._semantic_index is not None:
+            self._update_semantic_index(
+                fm.get("question_id", filename.replace(".md", "")), body,
+            )
+
+        # 蒸馏侧信道
+        if logprobs_data is not None:
+            sidecar_path = filepath.with_suffix(".distill.jsonl")
+            record = {
+                "question_id": fm.get("question_id", filename.replace(".md", "")),
+                "stem": content,
+                "options": options or {},
+                "answer": answer,
+                "logprobs": logprobs_data,
+                "model": None,
+                "captured_at": datetime.now(timezone.utc).isoformat(),
+            }
+            sidecar_path.write_text(
+                json.dumps(record, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
+            logger.debug("蒸馏侧信道已写入: %s", sidecar_path.name)
+
         logger.info("已保存题目: %s", filename)
         return filename
 
-    def add(self, question: dict, check_dup: bool = True) -> str:
+    def add(self, question: dict, check_dup: bool = True, calibrate_difficulty: bool = False) -> str:
         """从 dict 保存一道题。
 
         支持两种输入格式：
@@ -534,6 +795,7 @@ class QuestionBank:
         - 解析器格式（generate 管道）: stem, options, answer, explanation, type, knowledge
 
         check_dup: 默认 True，自动检查 stem 重复。管道调用时启用。
+        calibrate_difficulty: 默认 False，是否根据历史校准难度。
         """
         if "stem" in question:
             return self.add_manual(
@@ -551,6 +813,8 @@ class QuestionBank:
                 reviewed=False,
                 generated=True,
                 check_dup=check_dup,
+                calibrate_difficulty=calibrate_difficulty,
+                logprobs_data=question.get("_logprobs"),
             )
         return self.add_manual(
             title=question["title"],
@@ -566,6 +830,8 @@ class QuestionBank:
             tags=question.get("tags", []),
             reviewed=False,
             check_dup=check_dup,
+            calibrate_difficulty=calibrate_difficulty,
+            logprobs_data=question.get("_logprobs"),
         )
 
     def get(self, question_id: str) -> dict | None:
@@ -674,15 +940,17 @@ class QuestionBank:
         difficulty: str,
     ) -> dict[str, Any]:
         """共享管道：call_llm → parse → validate → save。"""
+        capture_logprobs = os.environ.get("EXAM_MEMORY_CAPTURE_LOGPROBS", "0") == "1"
         result: dict[str, Any] = {
             "saved": [],
             "validated": [],
             "rejected": [],
             "raw_llm_output": None,
             "error": None,
+            "logprobs_captured": False,
         }
 
-        llm_result = self._call_llm(system_prompt, user_prompt)
+        llm_result = self._call_llm(system_prompt, user_prompt, capture_logprobs=capture_logprobs)
         if not llm_result.ok:
             result["error"] = llm_result.error or "LLM 调用失败"
             return result
@@ -692,6 +960,9 @@ class QuestionBank:
             result["error"] = "LLM 不可用：未返回题目内容"
             return result
         result["raw_llm_output"] = raw
+
+        if llm_result.logprobs is not None:
+            result["logprobs_captured"] = True
 
         questions = self._parser.parse(raw)
         if not questions:
@@ -705,6 +976,8 @@ class QuestionBank:
             q["type"] = q_type
             q["knowledge"] = topic
             q["difficulty"] = difficulty
+            if llm_result.logprobs is not None:
+                q["_logprobs"] = llm_result.logprobs
             try:
                 fname = self.add(q)
             except ValueError as e:
@@ -782,8 +1055,9 @@ class QuestionBank:
         src = Path(path).resolve()
         if not src.is_dir():
             raise ValueError(f"目录不存在：{path}")
-        if not src.is_relative_to(Path.cwd().resolve()):
-            raise ValueError(f"导入路径超出项目目录: {path}")
+        bank_root = self.bank_dir.resolve()
+        if not src.is_relative_to(bank_root):
+            raise ValueError(f"导入路径超出题库目录: {path}")
 
         # 建立已有文件的索引: (type, knowledge) -> filename
         existing: set[tuple[str, str]] = set()
@@ -839,7 +1113,7 @@ class QuestionBank:
             logger.debug("检索失败：%s", e)
             return []
 
-    def _call_llm(self, system: str, user: str) -> LlmCallResult:
+    def _call_llm(self, system: str, user: str, capture_logprobs: bool = False) -> LlmCallResult:
         """调用配置的出题 LLM；失败返回 pipeline 可消费的结果对象。"""
         model = os.environ.get("EXAM_MEMORY_LLM_MODEL", "").strip()
         if not model:
@@ -852,16 +1126,28 @@ class QuestionBank:
             return LlmCallResult.failure("LLM 不可用：litellm 未安装")
 
         try:
-            resp = completion(
-                model=model,
-                messages=[
+            call_kwargs: dict[str, Any] = {
+                "model": model,
+                "messages": [
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
-                temperature=0.7,
-                max_tokens=4000,
-            )
-            return LlmCallResult.success(resp.choices[0].message.content or "")
+                "temperature": 0.7,
+                "max_tokens": 4000,
+            }
+            logprobs_data: list[dict[str, Any]] | None = None
+            if capture_logprobs:
+                top_k = int(os.environ.get("EXAM_MEMORY_LOGPROBS_TOP_K", "5"))
+                call_kwargs["logprobs"] = True
+                call_kwargs["top_logprobs"] = top_k
+            resp = completion(**call_kwargs)
+            content = resp.choices[0].message.content or ""
+            if capture_logprobs:
+                logprobs_data = _extract_logprobs(resp)
+                if logprobs_data is None:
+                    logger.warning("logprobs 捕获未成功（provider 可能不支持），降级为纯文本")
+                return LlmCallResult.success_with_logprobs(content, logprobs_data, model=model)
+            return LlmCallResult.success(content)
         except Exception as e:
             logger.error("LLM 调用失败：%s", e)
             return LlmCallResult.failure(f"LLM 调用失败：{e}")

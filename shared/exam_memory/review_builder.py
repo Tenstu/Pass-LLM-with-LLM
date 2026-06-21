@@ -9,6 +9,7 @@ Sources:
 from __future__ import annotations
 
 import re
+import threading
 from datetime import date, datetime
 from typing import Sequence
 
@@ -22,16 +23,19 @@ def _next_id(today: date | None = None) -> str:
 
 
 _SEQ = [1]
+_SEQ_LOCK = threading.Lock()
 
 
 def _reset_seq(n: int = 1) -> None:
-    _SEQ[0] = n
+    with _SEQ_LOCK:
+        _SEQ[0] = n
 
 
 def _take_id(today: date | None = None) -> str:
-    rid = _next_id(today)
-    _SEQ[0] += 1
-    return rid
+    with _SEQ_LOCK:
+        rid = _next_id(today)
+        _SEQ[0] += 1
+        return rid
 
 
 # ── Mistake log parser ──────────────────────────────────

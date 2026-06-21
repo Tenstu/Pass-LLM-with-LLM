@@ -1,5 +1,7 @@
 """Tests for review_builder.py — build review items from harness data."""
 
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from exam_memory.review_builder import (
     build_review_items_from_mistakes,
@@ -164,3 +166,28 @@ class TestDedupe:
         ]
         deduped = dedupe_review_items(items)
         assert len(deduped) == 2
+
+
+class TestReviewIdGeneration:
+    def test_take_id_unique_under_concurrent_calls(self, monkeypatch):
+        import exam_memory.review_builder as rb
+
+        rb._reset_seq(1)
+        original_next_id = rb._next_id
+
+        def slow_next_id(today=None):
+            rid = original_next_id(today)
+            time.sleep(0.001)
+            return rid
+
+        monkeypatch.setattr(rb, "_next_id", slow_next_id)
+        worker_count = 24
+        review_date = date(2026, 6, 21)
+
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            ids = list(executor.map(lambda _: rb._take_id(review_date), range(worker_count)))
+
+        assert len(ids) == worker_count
+        assert len(set(ids)) == worker_count
+        seqs = sorted(int(review_id.rsplit("-", 1)[1]) for review_id in ids)
+        assert seqs == list(range(1, worker_count + 1))
