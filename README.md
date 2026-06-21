@@ -1,4 +1,4 @@
-# pass-llm-with-llm
+# Pass-LLM-with-LLM
 
 > LLM-powered exam-prep harness for AI and algorithm written exams.
 
@@ -285,7 +285,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for path rules and PR expectations.
 
 ## Acknowledgements
 
-This project is inspired in part by [OneFind](https://github.com/iawnfoanaowt/OneFind), especially its local-first retrieval orientation and the idea that agent-facing tools should make personal knowledge easier to search and reuse. OneFind is an external project and optional integration; this repository does not redistribute OneFind code or present itself as an official OneFind extension.
+This project grew out of personal exam-prep practice for algorithm and AI written exams. It draws on ideas from two open-source projects:
+
+- [ChatMem](https://github.com/Rimagination/ChatMem) — cross-conversation search and session continuation patterns that influenced the handoff and recall design.
+- [OneFind](https://github.com/iawnfoanaowt/OneFind) — local-first knowledge-base indexing that influenced the retrieval and source-registry approach.
+
+Both are external, optional integrations; this repository does not redistribute their code or present itself as an official extension of either project. The harness combines these ideas with hands-on exam practice, structured around harness engineering principles: repeatable loops, explicit state files, and minimal mandatory dependencies.
 
 ## License
 

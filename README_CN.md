@@ -1,4 +1,4 @@
-# pass-llm-with-llm
+# Pass-LLM-with-LLM
 
 > 面向 AI/算法笔试的 LLM-powered exam-prep harness。
 
@@ -285,7 +285,12 @@ pass-llm-with-llm/
 
 ## 致谢
 
-本项目部分思路受到 [OneFind](https://github.com/iawnfoanaowt/OneFind) 启发，尤其是本地优先检索、Agent 可用资料组织、让个人知识更容易被搜索和复用等方向。OneFind 是外部项目和可选集成；本仓库不分发 OneFind 代码，也不表示自己是 OneFind 的官方扩展。
+本项目起源于算法与 AI 笔试的个人备考实践，借鉴了两个开源项目的设计思路：
+
+- [ChatMem](https://github.com/Rimagination/ChatMem) — 跨对话搜索与会话续接模式，影响了本项目的交接（handoff）与回忆（recall）设计。
+- [OneFind](https://github.com/iawnfoanaowt/OneFind) — 本地优先的知识库索引构建，影响了本项目的检索与来源注册（source-registry）方案。
+
+两者均为外部可选集成；本仓库不分发它们的代码，也不表示自己是其中任一项目的官方扩展。本项目将上述思路与个人备考实践相结合，按 harness engineering 原则构建：可重复的循环、显式状态文件、最少强制依赖。
 
 ## License
 
