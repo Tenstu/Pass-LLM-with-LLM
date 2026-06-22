@@ -38,7 +38,6 @@ _DENYLIST = [
     "targets/*/solutions/",
     "targets/*/mistake_log.md",
     "targets/*/mock_exam_log.md",
-    "targets/*/cheatsheets/",
     "targets/*/sources/",
     "HANDOFF.md",
     "prompts/review-fix-session-prompt.md",

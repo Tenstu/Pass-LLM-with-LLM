@@ -29,7 +29,6 @@ def test_target_file_wildcards_match_exact_single_target_segment():
 def test_target_directory_wildcards_match_directory_and_children():
     assert _matches_denylist("targets/ai-lab/progress") == "targets/*/progress/"
     assert _matches_denylist("targets/ai-lab/progress/rounds/r1.md") == "targets/*/progress/"
-    assert _matches_denylist("targets/ai-lab/cheatsheets/math_fundamentals.md") == "targets/*/cheatsheets/"
     assert _matches_denylist("targets/ai-lab/sources/source_index.md") == "targets/*/sources/"
     assert _matches_denylist("targets/foo/bar/progress/r1.md") is None
 
