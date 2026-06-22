@@ -72,7 +72,6 @@ targets/*/progress/**
 !targets/*/progress/**/.gitkeep
 targets/*/mistake_log.md
 targets/*/mock_exam_log.md
-targets/*/cheatsheets/*
 targets/*/sources/*
 
 # MCP 与个人记忆工具（仅本地，不入 git）
