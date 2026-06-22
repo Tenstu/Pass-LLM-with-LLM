@@ -14,3 +14,12 @@ sources:
     processing:
       chunk_size: 1600
       tags_from_filename: true
+
+  - name: "ai-lab-notes"
+    type: "local_dir"
+    config:
+      path: "../../targets/ai-lab/cheatsheets/"
+      glob: "*.md"
+    processing:
+      chunk_size: 1600
+      tags_from_filename: true
